@@ -1,4 +1,6 @@
 // app/page.tsx
+// Revalida la página cada 0 segundos (siempre obtiene datos frescos de la BD)
+export const revalidate = 0;
 import DestacadosGrid from './components/DestacadosGrid';
 import Hero from './components/Hero';
 import Historia from './components/Historia';
