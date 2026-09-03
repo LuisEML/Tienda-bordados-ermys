@@ -1,26 +1,39 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Configuración de Temas (Antes iba en tailwind.config.js) */
+@theme {
+  /* Registramos las fuentes que vienen del Layout */
+  --font-serif: var(--font-serif);
+  --font-sans: var(--font-sans);
+  
+  --color-crema: #FAF9F6;
+  --color-tierra: #4A443F;
+  --color-artesano: #BC6C25; /* Un tono arcilla para tu marca */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@theme {
+  --animate-marquee: marquee 25s linear infinite;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  @keyframes marquee {
+    from { transform: translateX(0%); }
+    to { transform: translateX(-50%); }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Estilos base */
+@layer base {  
+  h1, h2, h3, .font-serif {
+    font-family: var(--font-serif);
+  }
+}
+
+@layer utilities {
+  /* Oculta la barra de scroll pero mantiene la funcionalidad */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;     /* Firefox */
+  }
 }
