@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '*.supabase.co', // Acepta cualquier subdominio de Supabase
+        hostname: '**.supabase.co', // Se recomienda usar dos asteriscos (**) para subdominios en Next.js
         port: '',
         pathname: '/storage/v1/object/public/**',
       },
