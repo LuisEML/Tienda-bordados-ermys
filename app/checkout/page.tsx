@@ -235,8 +235,8 @@ function CheckoutContent() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <img src="/imgs/visa.svg" alt="Visa" className={`h-3.5 object-contain transition-all duration-300 ${metodoPago === "stripe" ? "grayscale-0 opacity-100" : "grayscale opacity-40"}`} />
-                  <img src="/imgs/mastercard.svg" alt="Mastercard" className={`h-5 object-contain transition-all duration-300 ${metodoPago === "stripe" ? "grayscale-0 opacity-100" : "grayscale opacity-40"}`} />
+                  <img src="/imgs/Visa.svg" alt="Visa" className={`h-3.5 object-contain transition-all duration-300 ${metodoPago === "stripe" ? "grayscale-0 opacity-100" : "grayscale opacity-40"}`} />
+                  <img src="/imgs/Mastercard.svg" alt="Mastercard" className={`h-5 object-contain transition-all duration-300 ${metodoPago === "stripe" ? "grayscale-0 opacity-100" : "grayscale opacity-40"}`} />
                 </div>
               </label>
 
