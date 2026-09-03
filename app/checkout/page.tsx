@@ -1,24 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useCart } from "@/context/CartContext";
 import { ShoppingBag, CreditCard, Truck } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { calcularEnvio, CONFIG_ENVIO } from "@/lib/calculoEnvio";
 
-export default function CheckoutPage() {
+// 1. Componente interno renombrado a CheckoutContent
+function CheckoutContent() {
   const { items, total: subtotalCarrito } = useCart();
 
-  // 💡 USAMOS EL TOTAL DEL CARRITO COMO SUBTOTAL
   const subtotal = subtotalCarrito || 0;
   const costoEnvio = calcularEnvio(subtotal);
   const totalFinal = subtotal + costoEnvio;
 
-  // Cálculo de cuánto le falta para envío gratis
   const faltaParaGratis = Math.max(0, CONFIG_ENVIO.UMBRAL_ENVIO_GRATIS - subtotal);
   
-  // Verificamos si algún producto en la orden aplica mayoreo
   const tieneProductosMayoreo = items.some((item: any) => {
     const minimoMayoreo = item.cantidad_minima_mayoreo || 12;
     return item.cantidad >= minimoMayoreo && Number(item.precio_mayoreo) > 0;
@@ -35,7 +33,7 @@ export default function CheckoutPage() {
     nombre: "",
     telefono: "",
     direccion: "",
-    referencias: "", // 👈 Nuevo campo opcional
+    referencias: "",
     ciudad: "",
     codigoPostal: "",
     estado: "",
@@ -117,7 +115,7 @@ export default function CheckoutPage() {
           items, 
           datosEnvio: form,
           metodoPago,
-          costoEnvio // 💡 ENVIAMOS EL COSTO DE ENVÍO AL API
+          costoEnvio
         }),
       });
 
@@ -194,7 +192,6 @@ export default function CheckoutPage() {
                 {errores.direccion && <p className="text-[11px] text-red-500 font-medium mt-1">⚠️ {errores.direccion}</p>}
               </div>
 
-              {/* 💡 NUEVO CAMPO: REFERENCIAS DEL DOMICILIO */}
               <div className="md:col-span-2">
                 <label className="text-[10px] uppercase tracking-wider text-stone-500 font-bold block mb-1">
                   Referencias del Domicilio <span className="text-stone-400 font-normal">(Opcional)</span>
@@ -278,7 +275,6 @@ export default function CheckoutPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-1">
                         <h4 className="text-xs font-bold text-stone-800 line-clamp-1">{item.nombre}</h4>
-                        {/* 💡 ETIQUETA BADGE DE MAYOREO SI APLICA */}
                         {esMayoreo && (
                           <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider flex-shrink-0">
                             ✨ Mayoreo
@@ -312,18 +308,15 @@ export default function CheckoutPage() {
             </div>
 
             <div className="bg-stone-50 p-4 rounded-xl border border-stone-200/60 space-y-3">
-              
-              {/* 💡 ALERTA INFORMATIVA SI LA ORDEN TIENE PRECIO MAYOREO */}
               {tieneProductosMayoreo && (
                 <div className="bg-emerald-50 border border-emerald-200/80 rounded-lg p-2.5 flex items-center gap-2 text-emerald-900 text-[11px] font-medium">
                   <span>✨</span>
                   <p className="leading-tight">
-                    ¡Tu pedido incluye <span className="font-bold">Tarifa de Mayoreo</span> aplicada!
+                    ¡Tu pedido includes <span className="font-bold">Tarifa de Mayoreo</span> aplicada!
                   </p>
                 </div>
               )}
 
-              {/* BARRA DE PROGRESO DE ENVÍO GRATIS */}
               {subtotal > 0 && (
                 <div className="bg-white p-3 rounded-lg border border-stone-200 text-xs">
                   {costoEnvio === 0 ? (
@@ -346,7 +339,6 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* DESGLOSE */}
               <div className="space-y-2 text-xs text-stone-600 border-t border-stone-200 pt-3">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
@@ -385,5 +377,14 @@ export default function CheckoutPage() {
 
       </form>
     </main>
+  );
+}
+
+// 2. Componente principal exportado por defecto envuelto en Suspense
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-stone-500 font-sans">Cargando checkout...</div>}>
+      <CheckoutContent />
+    </Suspense>
   );
 }
