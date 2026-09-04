@@ -1,6 +1,5 @@
 // app/page.tsx
 // Revalida la página cada 0 segundos (siempre obtiene datos frescos de la BD)
-export const revalidate = 0;
 import DestacadosGrid from './components/DestacadosGrid';
 import Hero from './components/Hero';
 import Historia from './components/Historia';
@@ -8,6 +7,8 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import Boletin from './components/Boletin';
 import { RevealOnScroll } from './components/RevealOnScroll';
+export const revalidate = 0;
+
 
 export default async function Home() {
 

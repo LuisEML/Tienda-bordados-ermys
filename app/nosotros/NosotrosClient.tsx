@@ -3,6 +3,8 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { RevealOnScroll } from "../components/RevealOnScroll";
 import { Typewriter } from "../components/Typewriter";
+// Fuerza a Next.js a obtener datos frescos de Supabase en cada visita
+export const revalidate = 0;
 
 export default async function NosotrosPage() {
   // 1. CONSULTA A SUPABASE
