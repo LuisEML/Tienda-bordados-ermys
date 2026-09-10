@@ -125,6 +125,7 @@ function CheckoutContent() {
         window.location.href = data.url;
       } else {
         alert("Hubo un error al procesar tu orden.");
+        console.log(data.url)
       }
     } catch (error) {
       console.error("Error en el checkout:", error);
