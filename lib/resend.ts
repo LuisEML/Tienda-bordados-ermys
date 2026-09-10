@@ -42,7 +42,7 @@ export async function enviarNotificacionNuevaVenta(datos: DatosNotificacion) {
 
   try {
     const data = await resend.emails.send({
-      from: "Tienda Online <onboarding@resend.dev>", // Cambia por tu dominio verificado en producción
+      from: "Confecciones ERMY'S <contacto@ropatipicaermys.com.mx>", // Cambia por tu dominio verificado en producción
       to: [adminEmail],
       subject: `🚨 ¡Nueva venta recibida! Orden #${datos.ordenId}`,
       html: `

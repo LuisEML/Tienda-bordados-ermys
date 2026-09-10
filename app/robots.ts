@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = "https://tu-dominio-oficial.com";
+const baseUrl = process.env.APP_URL || "https://ropatipicaermys.com.mx";
 
   return {
     rules: {

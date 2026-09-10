@@ -8,7 +8,7 @@ import ClientLayout from "./components/ClientLayout";
 
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://tu-dominio-oficial.com"), // Sustituir por el dominio final
+  metadataBase: new URL("https://www.ropatipicaermys.com.mx/"), // Sustituir por el dominio final
   title: {
     default: "Confecciones y Bordados ERMY’S | Moda Artesanal Hecha a Mano",
     template: "%s | Confecciones y Bordados ERMY’S",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "es_MX",
-    url: "https://tu-dominio-oficial.com",
+    url: "https://www.ropatipicaermys.com.mx/",
     title: "Confecciones y Bordados ERMY’S",
     description:
       "Guardianes de la tradición textil. Ropa artesanal con bordados hechos a mano y calidad premium.",

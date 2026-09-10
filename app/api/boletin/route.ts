@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
     // 2. Enviar correo de bienvenida con Resend
     const { error: emailError } = await resend.emails.send({
-      from: "Bordados ERMY'S <onboarding@resend.dev>", // Cambia por tu dominio verificado cuando esté listo
+      from: "Confecciones ERMY'S <contacto@ropatipicaermys.com.mx>", // Cambia por tu dominio verificado cuando esté listo
       to: [email],
       subject: "✨ ¡Bienvenido a nuestra comunidad artesana!",
       html: `

@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: titulo,
       description: descripcion,
-      url: `https://tu-dominio-oficial.com/productos/${id}`,
+      url: `https://www.ropatipicaermys.com.mx/productos/${id}`,
       siteName: "Confecciones y Bordados ERMY’S",
       images: [
         {

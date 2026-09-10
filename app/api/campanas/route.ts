@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     }
 
     const emailsBatch = suscriptores.map((s) => ({
-      from: "Tu Marca <onboarding@resend.dev>",
+      from: "Confecciones ERMY'S <contacto@ropatipicaermys.com.mx>",
       to: s.email,
       subject: asunto,
       html: `<div style="font-family: sans-serif; padding: 20px;">

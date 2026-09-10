@@ -2,7 +2,7 @@ import { MetadataRoute } from "next";
 import { supabase } from "@/lib/supabase";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://tu-dominio-oficial.com";
+const baseUrl = process.env.APP_URL || "https://ropatipicaermys.com.mx";
 
   // 1. Obtener todos los productos de Supabase
   const { data: productos } = await supabase

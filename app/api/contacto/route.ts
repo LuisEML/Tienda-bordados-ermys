@@ -41,8 +41,8 @@ export async function POST(req: Request) {
 
     // Enviamos el correo electrónico
     const data = await resend.emails.send({
-      from: "Bordados Ermy Web <onboarding@resend.dev>", 
-      to: "guero560mlb@gmail.com", // <-- ¡AQUÍ COLOCA TU CORREO DONDE QUIERES RECIBIRLOS!
+      from: "Confecciones ERMY'S <contacto@ropatipicaermys.com.mx>", 
+      to: "nicolasignaciopachecoaguirre@gmail.com", // <-- ¡AQUÍ COLOCA TU CORREO DONDE QUIERES RECIBIRLOS!
       replyTo: email, // <--- ¡AÑADE ESTA LÍNEA!
       subject: `🧶 Nueva Solicitud de Cliente: ${interes}`,
       html: `
