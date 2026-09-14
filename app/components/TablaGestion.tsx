@@ -138,7 +138,7 @@ export default function TablaGestionProductos({
   // Búsqueda y Paginación EXCLUSIVAS para la pestaña de Pedidos
   const [busquedaOrdenes, setBusquedaOrdenes] = useState("");
   const [paginaActualOrdenes, setPaginaActualOrdenes] = useState(1);
-  const elementosPorPaginaOrdenes = 5;
+  const elementosPorPaginaOrdenes = 10;
   // Eliminación
   const [eliminandoId, setEliminandoId] = useState<string | number | null>(null);
 

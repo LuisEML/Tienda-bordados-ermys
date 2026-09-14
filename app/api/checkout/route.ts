@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { MercadoPagoConfig } from "mercadopago";
 import { createClient } from "@supabase/supabase-js"; // 💡 Importamos Supabase
+import { line } from "framer-motion/client";
+import { Currency } from "lucide-react";
 
 // 1. Inicializamos Stripe de forma segura
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
@@ -18,7 +20,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 export async function POST(req: Request) {
   try {
     // Recibimos los productos, los datos de dirección y la pasarela elegida
-    const { items, datosEnvio, metodoPago } = await req.json();
+    const { items, datosEnvio, metodoPago, costoEnvio } = await req.json();
     const origin = req.headers.get("origin");
 
     if (!items || items.length === 0) {
@@ -26,8 +28,8 @@ export async function POST(req: Request) {
     }
 
     // 💡 Calculamos el total real de la orden en el servidor para mayor seguridad
-    const totalOrden = items.reduce((acc: number, item: any) => acc + (item.precio * item.cantidad), 0);
-
+    const totalProductos = items.reduce((acc: number, item: any) => acc + (item.precio * item.cantidad), 0);
+    const totalOrden = totalProductos + Number(costoEnvio || 0); 
     // =================================================================
     // 🏠 PASO 1: REGISTRAR LA ORDEN MAESTRA EN SUPABASE (Tabla: ordenes)
     // =================================================================
@@ -100,6 +102,20 @@ export async function POST(req: Request) {
         };
       });
 
+      if(costoEnvio && Number(costoEnvio) >0){
+        line_items.push({
+          price_data:{
+            currency: "mxn",
+            product_data: {
+              name: "Costo de Envío",
+              description: "Envío a domicílio",
+            },
+            unit_amount: Math.round(Number(costoEnvio) * 100) // En centavos
+          },
+          quantity: 1,
+        })
+      }
+
       // Creamos la sesión en Stripe e inyectamos el orden_id en metadata
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
@@ -138,6 +154,19 @@ export async function POST(req: Request) {
         };
       });
 
+      // 💡 MODIFICACIÓN: Agregar Costo de Envío a Mercado Pago si aplica
+      if (costoEnvio && Number(costoEnvio) > 0) {
+        mpItems.push({
+          id: "ENVIO",
+          title: "Costo de Envío",
+          description: "Envío a domicilio",
+          category_id: "others",
+          quantity: 1,
+          unit_price: Number(costoEnvio), // Mercado Pago NO necesita centavos
+          currency_id: "MXN",
+        });
+      }
+
       const responseMP = await fetch("https://api.mercadopago.com/checkout/preferences", {
         method: "POST",
         headers: {
@@ -163,6 +192,7 @@ export async function POST(req: Request) {
           },
           metadata: {
             orden_id: nuevaOrden.id, // 💡 Clave para identificar esta compra en el Webhook de Mercado Pago
+            costo_envio: String(costoEnvio || 0), // 👈 Clave para recuperar el envío
             direccion_completa: `${datosEnvio?.direccion}, CP ${datosEnvio?.codigoPostal}, ${datosEnvio?.ciudad}, ${datosEnvio?.estado}`,
           },
         }),
