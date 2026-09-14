@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { MercadoPagoConfig } from "mercadopago";
 import { createClient } from "@supabase/supabase-js"; // 💡 Importamos Supabase
-import { line } from "framer-motion/client";
+import { line, picture } from "framer-motion/client";
 import { Currency } from "lucide-react";
 
 // 1. Inicializamos Stripe de forma segura
@@ -102,6 +102,7 @@ export async function POST(req: Request) {
         };
       });
 
+      // Agregar Costo de Envío a Stripe si aplica
       if(costoEnvio && Number(costoEnvio) >0){
         line_items.push({
           price_data:{
@@ -135,18 +136,25 @@ export async function POST(req: Request) {
     }
 
     // ==========================================
-    // 🛒 FLUJO DE MERCADO PAGO (INTEGRADO)
+    // 🛒 FLUJO DE MERCADO PAGO (CON DETALLES E IMÁGENES)
     // ==========================================
     if (metodoPago === "mercadopago") {
       const mpItems = items.map((item: any) => {
+        // 1. Limpieza estricta de la URL de la imagen
         const foto = item.imagen_url || item.imagen || "";
-        const fotoLimpia = foto.replace(/[{}]/g, "").trim();
+        let fotoLimpia = foto.replace(/[{}]/g, "").trim();
+
+        // 2. Si la foto es una ruta relativa, le pegamos el dominio público de producción
+        if (fotoLimpia && !fotoLimpia.startsWith("http")) {
+          const dominioPublico = process.env.APP_URL || origin || "https://www.ropatipicaermys.com.mx/";
+          fotoLimpia = `${dominioPublico}${fotoLimpia.startsWith("/") ? "" : "/"}${fotoLimpia}`;
+        }
 
         return {
-          id: item.id,
-          title: `${item.nombre} (Talla: ${item.talla || "U"})`,
-          description: `Color: ${item.color || "Único"}`,
-          picture_url: fotoLimpia || undefined,
+          id: String(item.id || item.producto_id_principal),
+          title: String(item.nombre), // Solo el nombre del producto
+          description: `Talla: ${item.talla || "U"} / Color: ${item.color || "Único"}`, // Variantes en descripción
+          picture_url: fotoLimpia.startsWith("https") ? fotoLimpia : undefined, // MP exige HTTPS
           category_id: "clothing",
           quantity: Number(item.cantidad),
           unit_price: Number(item.precio),
@@ -154,15 +162,16 @@ export async function POST(req: Request) {
         };
       });
 
-      // 💡 MODIFICACIÓN: Agregar Costo de Envío a Mercado Pago si aplica
+      // 3. Agregar el Costo de Envío como ítem individual
       if (costoEnvio && Number(costoEnvio) > 0) {
         mpItems.push({
-          id: "ENVIO",
+          id: "costo-envio",
           title: "Costo de Envío",
           description: "Envío a domicilio",
-          category_id: "others",
+          picture_url: undefined,
+          category_id: "shipping",
           quantity: 1,
-          unit_price: Number(costoEnvio), // Mercado Pago NO necesita centavos
+          unit_price: Number(costoEnvio),
           currency_id: "MXN",
         });
       }
@@ -177,22 +186,21 @@ export async function POST(req: Request) {
           items: mpItems,
           payer: {
             name: datosEnvio?.nombre || "",
-            phone: {
-              number: datosEnvio?.telefono || "",
-            },
+            phone: { number: datosEnvio?.telefono || "" },
             address: {
               street_name: datosEnvio?.direccion || "",
               zip_code: datosEnvio?.codigoPostal || "",
             },
           },
           back_urls: {
-            success: `${origin}/success`,
-            failure: `${origin}/checkout`,
-            pending: `${origin}/success`,
+            success: `${process.env.NEXT_PUBLIC_APP_URL || origin}/success`,
+            failure: `${process.env.NEXT_PUBLIC_APP_URL || origin}/checkout`,
+            pending: `${process.env.NEXT_PUBLIC_APP_URL || origin}/success`,
           },
+          auto_return: "approved",
           metadata: {
-            orden_id: nuevaOrden.id, // 💡 Clave para identificar esta compra en el Webhook de Mercado Pago
-            costo_envio: String(costoEnvio || 0), // 👈 Clave para recuperar el envío
+            orden_id: nuevaOrden.id,
+            costo_envio: String(costoEnvio || 0),
             direccion_completa: `${datosEnvio?.direccion}, CP ${datosEnvio?.codigoPostal}, ${datosEnvio?.ciudad}, ${datosEnvio?.estado}`,
           },
         }),
@@ -208,7 +216,6 @@ export async function POST(req: Request) {
       const urlRedireccion = preference.sandbox_init_point || preference.init_point;
       return NextResponse.json({ url: urlRedireccion });
     }
-
   } catch (err: any) {
     console.error("Error en API Checkout:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
