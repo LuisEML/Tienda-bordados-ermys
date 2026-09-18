@@ -200,7 +200,7 @@ export async function POST(req: Request) {
           auto_return: "approved",
           metadata: {
             orden_id: nuevaOrden.id,
-            costo_envio: String(costoEnvio || 0),
+            //costo_envio: String(costoEnvio || 0)
             direccion_completa: `${datosEnvio?.direccion}, CP ${datosEnvio?.codigoPostal}, ${datosEnvio?.ciudad}, ${datosEnvio?.estado}`,
           },
         }),
