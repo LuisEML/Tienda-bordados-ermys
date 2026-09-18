@@ -29,7 +29,9 @@ export async function POST(req: Request) {
 
     // 💡 Calculamos el total real de la orden en el servidor para mayor seguridad
     const totalProductos = items.reduce((acc: number, item: any) => acc + (item.precio * item.cantidad), 0);
-    const totalOrden = totalProductos + Number(costoEnvio || 0); 
+    //const totalOrden = totalProductos + Number(costoEnvio || 0);
+    const totalOrden = totalProductos; 
+
     // =================================================================
     // 🏠 PASO 1: REGISTRAR LA ORDEN MAESTRA EN SUPABASE (Tabla: ordenes)
     // =================================================================
