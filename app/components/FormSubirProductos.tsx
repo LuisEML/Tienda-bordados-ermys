@@ -49,6 +49,10 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
   const [guiaMujerFile, setGuiaMujerFile] = useState<File | null>(null);
   const [guiaNinosFile, setGuiaNinosFile] = useState<File | null>(null);
   const [guiaNinasFile, setGuiaNinasFile] = useState<File | null>(null);
+  // Nuevos estados
+  const [guiaGeneralFile, setGuiaGeneralFile] = useState<File | null>(null);
+  const [tipoGuiaCategoria, setTipoGuiaCategoria] = useState<'genero' | 'general'>('genero');
+  
 
   // --- PORTADA Y DATOS GENERALES ---
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -167,7 +171,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
     setGruposColor(nuevos);
   };
 
-  // --- CATEGORÍAS ---
+  // --- CREAR CATEGORÍA ---
   const handleCrearCategoria = async () => {
     if (!nuevaCategoriaNombre.trim()) return;
     setCreandoCategoria(true);
@@ -177,33 +181,37 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
       let guiaMujerUrl = null;
       let guiaNinosUrl = null;
       let guiaNinasUrl = null;
+      let guiaGeneralUrl = null;
 
-      // Subir cada guía si se seleccionó archivo
-      if (guiaHombreFile) {
-        const name = `${Date.now()}-guia-hombre-${guiaHombreFile.name}`;
-        await supabase.storage.from('fotos-productos').upload(name, guiaHombreFile);
-        guiaHombreUrl = supabase.storage.from('fotos-productos').getPublicUrl(name).data.publicUrl;
+      if (tipoGuiaCategoria === 'genero') {
+        if (guiaHombreFile) {
+          const name = `${Date.now()}-guia-hombre-${guiaHombreFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          await supabase.storage.from('fotos-productos').upload(name, guiaHombreFile);
+          guiaHombreUrl = supabase.storage.from('fotos-productos').getPublicUrl(name).data.publicUrl;
+        }
+        if (guiaMujerFile) {
+          const name = `${Date.now()}-guia-mujer-${guiaMujerFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          await supabase.storage.from('fotos-productos').upload(name, guiaMujerFile);
+          guiaMujerUrl = supabase.storage.from('fotos-productos').getPublicUrl(name).data.publicUrl;
+        }
+        if (guiaNinosFile) {
+          const name = `${Date.now()}-guia-ninos-${guiaNinosFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          await supabase.storage.from('fotos-productos').upload(name, guiaNinosFile);
+          guiaNinosUrl = supabase.storage.from('fotos-productos').getPublicUrl(name).data.publicUrl;
+        }
+        if (guiaNinasFile) {
+          const name = `${Date.now()}-guia-ninas-${guiaNinasFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          await supabase.storage.from('fotos-productos').upload(name, guiaNinasFile);
+          guiaNinasUrl = supabase.storage.from('fotos-productos').getPublicUrl(name).data.publicUrl;
+        }
+      } else {
+        if (guiaGeneralFile) {
+          const name = `${Date.now()}-guia-general-${guiaGeneralFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          await supabase.storage.from('fotos-productos').upload(name, guiaGeneralFile);
+          guiaGeneralUrl = supabase.storage.from('fotos-productos').getPublicUrl(name).data.publicUrl;
+        }
       }
 
-      if (guiaMujerFile) {
-        const name = `${Date.now()}-guia-mujer-${guiaMujerFile.name}`;
-        await supabase.storage.from('fotos-productos').upload(name, guiaMujerFile);
-        guiaMujerUrl = supabase.storage.from('fotos-productos').getPublicUrl(name).data.publicUrl;
-      }
-
-      if (guiaNinosFile) {
-        const name = `${Date.now()}-guia-ninos-${guiaNinosFile.name}`;
-        await supabase.storage.from('fotos-productos').upload(name, guiaNinosFile);
-        guiaNinosUrl = supabase.storage.from('fotos-productos').getPublicUrl(name).data.publicUrl;
-      }
-
-      if (guiaNinasFile) {
-        const name = `${Date.now()}-guia-ninas-${guiaNinasFile.name}`;
-        await supabase.storage.from('fotos-productos').upload(name, guiaNinasFile);
-        guiaNinasUrl = supabase.storage.from('fotos-productos').getPublicUrl(name).data.publicUrl;
-      }
-
-      // Insertar en la tabla categorias
       const slug = nuevaCategoriaNombre.toLowerCase().trim().replace(/\s+/g, '-');
       const { data, error } = await supabase
         .from('categorias')
@@ -213,14 +221,15 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
           guia_tallas_hombre_url: guiaHombreUrl,
           guia_tallas_mujer_url: guiaMujerUrl,
           guia_tallas_ninos_url: guiaNinosUrl,
-          guia_tallas_ninas_url: guiaNinasUrl
+          guia_tallas_ninas_url: guiaNinasUrl,
+          guia_tallas_general_url: guiaGeneralUrl
         }])
         .select()
         .single();
 
       if (error) throw error;
 
-      toast.success("Categoría con guías de tallas creada con éxito");
+      toast.success("Categoría creada con éxito");
       setListaCategorias(prev => [...prev, data]);
       setCategoriaId(data.id);
       
@@ -230,6 +239,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
       setGuiaMujerFile(null);
       setGuiaNinosFile(null);
       setGuiaNinasFile(null);
+      setGuiaGeneralFile(null);
       setModoNuevaCategoria(false);
 
     } catch (err: any) {
@@ -395,82 +405,118 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
             <input name="nombre" required className="w-full p-3 border border-stone-200 rounded-lg outline-none focus:border-stone-800 transition-all text-sm" placeholder="Ej. Huipil Bordado Tradicional" />
           </div>
 
-          {/* SELECTOR DE CATEGORÍAS */}
+          {/* SELECTOR Y CREACIÓN DE CATEGORÍAS */}
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center">
-              <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Categoría</label>
-              <button
-                type="button"
-                onClick={() => setModoNuevaCategoria(!modoNuevaCategoria)}
-                className="text-[10px] font-bold text-stone-800 hover:underline flex items-center gap-1"
-              >
-                <FolderPlus className="w-3.5 h-3.5" />
-                {modoNuevaCategoria ? "Seleccionar existente" : "+ Nueva Categoría"}
-              </button>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Categoría</label>
+              {!modoNuevaCategoria && (
+                <button
+                  type="button"
+                  onClick={() => setModoNuevaCategoria(true)}
+                  className="text-xs text-stone-700 hover:text-stone-900 font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <FolderPlus className="w-3.5 h-3.5" /> Nueva Categoría
+                </button>
+              )}
             </div>
 
             {modoNuevaCategoria ? (
               <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 space-y-4">
-                {/* Nombre de la categoría */}
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-stone-800 uppercase">Crear Categoría</span>
+                  <button
+                    type="button"
+                    onClick={() => setModoNuevaCategoria(false)}
+                    className="text-stone-400 hover:text-stone-600 text-xs font-bold"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+
                 <div>
                   <label className="text-[9px] font-bold text-stone-500 uppercase block mb-1">Nombre de la Categoría</label>
                   <input
                     type="text"
-                    placeholder="Ej. Blusas y Huipiles"
+                    placeholder="Ej. Manteles y Rebozos o Blusas Tradicionales"
                     value={nuevaCategoriaNombre}
                     onChange={(e) => setNuevaCategoriaNombre(e.target.value)}
                     className="w-full p-2.5 bg-white border border-stone-200 rounded-lg text-sm outline-none focus:border-stone-800"
                   />
                 </div>
 
-                {/* Inputs para subida de Guías de Tallas (Todas Opcionales) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-stone-200/60">
-                  <div>
-                    <label className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Guía Hombre (Opcional)</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setGuiaHombreFile(e.target.files?.[0] || null)}
-                      className="text-[10px] text-stone-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[9px] file:font-bold file:bg-stone-200 file:text-stone-700 hover:file:bg-stone-300 cursor-pointer w-full"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Guía Mujer (Opcional)</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setGuiaMujerFile(e.target.files?.[0] || null)}
-                      className="text-[10px] text-stone-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[9px] file:font-bold file:bg-stone-200 file:text-stone-700 hover:file:bg-stone-300 cursor-pointer w-full"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Guía Niños (Opcional)</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setGuiaNinosFile(e.target.files?.[0] || null)}
-                      className="text-[10px] text-stone-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[9px] file:font-bold file:bg-stone-200 file:text-stone-700 hover:file:bg-stone-300 cursor-pointer w-full"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Guía Niñas (Opcional)</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setGuiaNinasFile(e.target.files?.[0] || null)}
-                      className="text-[10px] text-stone-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[9px] file:font-bold file:bg-stone-200 file:text-stone-700 hover:file:bg-stone-300 cursor-pointer w-full"
-                    />
-                  </div>
+                <div className="flex gap-4 border-b border-stone-200 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => setTipoGuiaCategoria('genero')}
+                    className={`text-xs font-bold pb-1 transition-all ${tipoGuiaCategoria === 'genero' ? 'border-b-2 border-stone-800 text-stone-800' : 'text-stone-400'}`}
+                  >
+                    Guías por Género (Ropa)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTipoGuiaCategoria('general')}
+                    className={`text-xs font-bold pb-1 transition-all ${tipoGuiaCategoria === 'general' ? 'border-b-2 border-stone-800 text-stone-800' : 'text-stone-400'}`}
+                  >
+                    Guía Única / General
+                  </button>
                 </div>
+
+                {tipoGuiaCategoria === 'genero' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Guía Hombre (Opcional)</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setGuiaHombreFile(e.target.files?.[0] || null)}
+                        className="text-[10px] text-stone-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[9px] file:font-bold file:bg-stone-200 file:text-stone-700 cursor-pointer w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Guía Mujer (Opcional)</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setGuiaMujerFile(e.target.files?.[0] || null)}
+                        className="text-[10px] text-stone-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[9px] file:font-bold file:bg-stone-200 file:text-stone-700 cursor-pointer w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Guía Niños (Opcional)</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setGuiaNinosFile(e.target.files?.[0] || null)}
+                        className="text-[10px] text-stone-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[9px] file:font-bold file:bg-stone-200 file:text-stone-700 cursor-pointer w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Guía Niñas (Opcional)</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setGuiaNinasFile(e.target.files?.[0] || null)}
+                        className="text-[10px] text-stone-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[9px] file:font-bold file:bg-stone-200 file:text-stone-700 cursor-pointer w-full"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Guía de Tallas General (Opcional)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setGuiaGeneralFile(e.target.files?.[0] || null)}
+                      className="text-[10px] text-stone-600 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[9px] file:font-bold file:bg-stone-200 file:text-stone-700 cursor-pointer w-full"
+                    />
+                  </div>
+                )}
 
                 <button
                   type="button"
                   onClick={handleCrearCategoria}
                   disabled={creandoCategoria || !nuevaCategoriaNombre.trim()}
-                  className="w-full py-2 bg-stone-800 text-white rounded-lg text-xs font-bold hover:bg-stone-900 transition-all disabled:opacity-50"
+                  className="w-full py-2 bg-stone-800 text-white rounded-lg text-xs font-bold hover:bg-stone-900 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {creandoCategoria ? "Guardando Categoría..." : "Guardar Categoría y Seleccionar"}
                 </button>

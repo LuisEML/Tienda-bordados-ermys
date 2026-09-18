@@ -1,10 +1,10 @@
 "use client";
 
-import { useState,useEffect } from "react";
-import { ShoppingBag, Ruler, Check, Truck, ShieldCheck, Heart, Minus, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ShoppingBag, Check, Truck, ShieldCheck, Minus, Plus } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";     // El navegador de Next.js
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import EnviosModal from "./EnviosModal";
 
@@ -12,25 +12,40 @@ interface DetalleCompraProps {
   producto: any;
   colorActivo: string;
   setColorActivo: (color: string) => void;
-  imagenActual: string; // 👈 Agregamos esto
+  imagenActual: string;
 }
 
 export default function DetalleCompra({ producto, colorActivo, setColorActivo, imagenActual }: DetalleCompraProps) {
-  const [modalAbierto, setModalAbierto] = useState(false)
+  const [modalAbierto, setModalAbierto] = useState(false);
   const { agregarProducto } = useCart();
-  const router = useRouter();            // Activamos el enrutador
+  const router = useRouter();
 
   // ESTADOS LOCALES
   const [tallaSeleccionada, setTallaSeleccionada] = useState("");
-  const [cantidad, setCantidad] = useState(1); // 👈 Nuevo estado para el contador
+  const [cantidad, setCantidad] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [agregadoAnimacion, setAgregadoAnimacion] = useState(false);
 
-  
+  // 1. Extraemos la categoría
+  const cat = producto?.categorias;
 
-  // ✅ AHORA: 
+  // 2. Resolvemos la URL con el orden de prioridad (Género -> General)
+  let urlGuiaTallas = null;
+
+  if (cat) {
+    if (producto.genero === "Hombre") urlGuiaTallas = cat.guia_tallas_hombre_url;
+    else if (producto.genero === "Mujer") urlGuiaTallas = cat.guia_tallas_mujer_url;
+    else if (producto.genero === "Niños") urlGuiaTallas = cat.guia_tallas_ninos_url;
+    else if (producto.genero === "Niñas") urlGuiaTallas = cat.guia_tallas_ninas_url;
+
+    // Si el género no tiene guía asignada o la categoría es de Guía Única/General
+    if (!urlGuiaTallas) {
+      urlGuiaTallas = cat.guia_tallas_general_url;
+    }
+  }
+
   // 1. Obtenemos solo las variaciones que sí tienen existencia (stock > 0)
-  const variacionesConStock = producto.variaciones.filter((v: any) => v.stock > 0);
+  const variacionesConStock = producto.variaciones ? producto.variaciones.filter((v: any) => v.stock > 0) : [];
 
   // 2. Extraemos los colores únicos a partir de las variaciones disponibles
   const coloresUnicos = variacionesConStock.filter((v: any, index: number, self: any) =>
@@ -48,13 +63,13 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
     }
   }, [coloresUnicos, colorActivo]);
 
-  const variacionSeleccionada = producto.variaciones.find(
+  const variacionSeleccionada = producto.variaciones?.find(
     (v: any) => v.color_nombre === colorActivo && v.talla === tallaSeleccionada
   );
 
-  const tallasDisponibles = producto.variaciones.filter(
+  const tallasDisponibles = producto.variaciones ? producto.variaciones.filter(
     (v: any) => v.color_nombre === colorActivo && v.stock > 0
-  );
+  ) : [];
 
   // Funciones para el contador
   const incrementar = () => {
@@ -67,7 +82,6 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
   };
 
   const handleComprarAhora = () => {
-    // 1. Validamos que el cliente haya elegido una talla
     if (!tallaSeleccionada) {
       toast.error("Por favor, selecciona una talla antes de comprar ahora", {
         style: {
@@ -83,25 +97,21 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
     }
 
     if (variacionSeleccionada) {
-      // 2. Formateamos el producto con TODAS las propiedades requeridas para mayoreo
       const productoFormateado = {
         id: variacionSeleccionada.id,
         nombre: producto.nombre,
         precio: Number(producto.precio_menudeo || 0),
-        precio_mayoreo: Number(producto.precio_mayoreo || 0), // 👈 IMPORTANTE
-        cantidad_minima_mayoreo: Number(producto.cantidad_minima_mayoreo || 12), // 👈 IMPORTANTE
+        precio_mayoreo: Number(producto.precio_mayoreo || 0),
+        cantidad_minima_mayoreo: Number(producto.cantidad_minima_mayoreo || 12),
         color: colorActivo,
         talla: tallaSeleccionada,
         imagen_url: imagenActual,
         cantidad: cantidad,
-        stock: variacionSeleccionada.stock, // 👈 IMPORTANTE
-        producto_id_principal: producto.id // 👈 IMPORTANTE
+        stock: variacionSeleccionada.stock,
+        producto_id_principal: producto.id
       };
 
-      // 3. Lo agregamos al estado global del carrito
       agregarProducto(productoFormateado);
-      
-      // 4. Redirigimos al checkout
       router.push(`/checkout?id=${producto.id}`);
     }
   };
@@ -109,40 +119,25 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
   const handleAgregarCarrito = () => {
     if (!tallaSeleccionada) {
       toast.error("Por favor, selecciona una talla antes de agregar al carrito", {
-      // Le damos estilos para que combine con tu estética minimalista "stone"
-      style: {
-        background: "#ffffff",
-        color: "#1c1917", // stone-900
-        borderRadius: "12px",
-        border: "1px solid #e7e5e4", // stone-200
-        fontFamily: "ui-serif, Georgia, Cambria, serif", // Tu fuente Serif elegante
-        fontSize: "12px",
-      }
-    });
-    return; // Detiene la función para que no se agregue vacío
+        style: {
+          background: "#ffffff",
+          color: "#1c1917",
+          borderRadius: "12px",
+          border: "1px solid #e7e5e4",
+          fontFamily: "ui-serif, Georgia, Cambria, serif",
+          fontSize: "12px",
+        }
+      });
+      return;
     }
 
     if (variacionSeleccionada) {
-      // const imagenProducto = variacionSeleccionada.imagenes?.[0] || producto.imagen_principal_url || "";
-
       agregarProducto({
-        // id: variacionSeleccionada.id,
-        // nombre: producto.nombre,
-        // precio: producto.precio_menudeo,
-        // precio_mayoreo: Number(producto.precio_mayoreo || 0), // 👈 IMPORTANTE
-        // cantidad_minima_mayoreo: Number(producto.cantidad_minima_mayoreo || 12), // 👈 IMPORTANT
-        // color: colorActivo,
-        // talla: tallaSeleccionada,
-        // imagen_url: imagenActual, // 👈 ¡MAGIA! Ahora toma la foto exacta de la pantalla grande        cantidad: cantidad // 👈 Pasamos la cantidad seleccionada
-        // stock: variacionSeleccionada.stock ,// 👈 ¡ESTA LÍNEA ES CLAVE!
-        
-        // // 💡 AQUÍ ESTÁ EL TRUCO: Guardamos el ID de la tabla productos
-        // producto_id_principal: producto.id
         id: variacionSeleccionada.id,
         nombre: producto.nombre,
         precio: Number(producto.precio_menudeo || 0),
-        precio_mayoreo: Number(producto.precio_mayoreo || 0), // 👈 IMPORTANTE
-        cantidad_minima_mayoreo: Number(producto.cantidad_minima_mayoreo || 12), // 👈 IMPORTANTE
+        precio_mayoreo: Number(producto.precio_mayoreo || 0),
+        cantidad_minima_mayoreo: Number(producto.cantidad_minima_mayoreo || 12),
         color: colorActivo,
         talla: tallaSeleccionada,
         imagen_url: imagenActual,
@@ -157,15 +152,11 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
     }
   };
 
-
-
-  // 💡 LÓGICA DE ALERTA UX DE MAYOREO
+  // INDICADOR DE MAYOREO
   const minimoMayoreo = Number(producto.cantidad_minima_mayoreo || 12);
   const tienePrecioMayoreoConfigurado = Number(producto.precio_mayoreo) > 0;
   const faltanParaMayoreo = Math.max(0, minimoMayoreo - cantidad);
   const alcanzoMayoreo = cantidad >= minimoMayoreo && tienePrecioMayoreoConfigurado;
-
-  
 
   return (
     <div className="space-y-6">
@@ -186,59 +177,57 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
         </span>
         <div className="flex gap-2.5">
           {coloresUnicos.map((v: any, index: number) => (
-          <button
-            key={v.id || v.color_nombre || `color-${index}`} // <-- Solución aquí
-            onClick={() => {
-              setColorActivo(v.color_nombre);
-              setTallaSeleccionada(""); 
-              setCantidad(1); // Reiniciar cantidad
-            }}
-            className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center cursor-pointer ${
-              colorActivo === v.color_nombre ? 'border-stone-800 scale-105 shadow-2xs' : 'border-stone-200/40 hover:scale-105'
-            }`}
-            style={{ backgroundColor: v.color_hex }}
-          >
-            {colorActivo === v.color_nombre && (
-              <Check size={12} className={v.color_nombre === "Blanco" || v.color_hex === "#ffffff" ? "text-stone-900" : "text-white"} />
-            )}
-          </button>
+            <button
+              key={v.id || v.color_nombre || `color-${index}`}
+              onClick={() => {
+                setColorActivo(v.color_nombre);
+                setTallaSeleccionada("");
+                setCantidad(1);
+              }}
+              className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center cursor-pointer ${
+                colorActivo === v.color_nombre ? 'border-stone-800 scale-105 shadow-2xs' : 'border-stone-200/40 hover:scale-105'
+              }`}
+              style={{ backgroundColor: v.color_hex }}
+            >
+              {colorActivo === v.color_nombre && (
+                <Check size={12} className={v.color_nombre === "Blanco" || v.color_hex === "#ffffff" ? "text-stone-900" : "text-white"} />
+              )}
+            </button>
           ))}
         </div>
       </div>
 
       {/* SELECTOR DE TALLA */}
       <div className="border-t border-stone-100 pt-4">
-        <div className="flex justify-between items-baseline">
-            <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-400">
-              Selecciona tu talla
-            </p>
-            
-            {/* 💡 BOTÓN DE GUÍA DE TALLAS */}
-            {/* 💡 BOTÓN DE GUÍA DE TALLAS */}
-            { (
-              producto.categorias?.guia_tallas_hombre_url ||
-              producto.categorias?.guia_tallas_mujer_url ||
-              producto.categorias?.guia_tallas_ninos_url ||
-              producto.categorias?.guia_tallas_ninas_url
-            ) && (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="text-[10px] font-bold uppercase tracking-widest text-stone-500 hover:text-stone-800 transition-colors border-b border-dashed border-stone-400 hover:border-stone-800 pb-0.5 cursor-pointer focus:outline-none"
-              >
-                📏 Guía de tallas
-              </button>
-            )}
+        <div className="flex justify-between items-baseline mb-3">
+          <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-400">
+            Selecciona tu talla
+          </p>
+
+          {/* 💡 BOTÓN DE GUÍA DE TALLAS EVALUADO CON GUÍA GENERAL */}
+          {(urlGuiaTallas ||
+            cat?.guia_tallas_hombre_url ||
+            cat?.guia_tallas_mujer_url ||
+            cat?.guia_tallas_ninos_url ||
+            cat?.guia_tallas_ninas_url ||
+            cat?.guia_tallas_general_url
+          ) && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="text-[10px] font-bold uppercase tracking-widest text-stone-500 hover:text-stone-800 transition-colors border-b border-dashed border-stone-400 hover:border-stone-800 pb-0.5 cursor-pointer focus:outline-none"
+            >
+              📏 Guía de tallas
+            </button>
+          )}
         </div>
 
-        {/* setIsModalOpen */}
-        
         <div className="flex flex-wrap gap-2">
           {tallasDisponibles.map((v: any, index: number) => (
             <button
-              key={v.id || v.talla || `talla-${index}`} // <-- Solución aquí
+              key={v.id || v.talla || `talla-${index}`}
               onClick={() => {
                 setTallaSeleccionada(v.talla);
-                setCantidad(1); // Reset de seguridad
+                setCantidad(1);
               }}
               className={`px-4 py-2 text-xs font-bold border rounded-xl transition-all tracking-wider cursor-pointer ${
                 tallaSeleccionada === v.talla 
@@ -259,7 +248,7 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
         )}
       </div>
 
-      {/* NEW: SELECTOR DE CANTIDAD (+ y -) */}
+      {/* SELECTOR DE CANTIDAD */}
       <div className="border-t border-stone-100 pt-4">
         <span className="text-[9px] uppercase font-bold text-stone-400 tracking-[0.2em] block mb-2.5">
           Cantidad
@@ -285,8 +274,7 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
         </div>
       </div>
 
-      {/* BOTONES DE COMPRA */}
-        {/* 💡 INDICADOR UX EN TIEMPO REAL (MAYOREO) */}
+      {/* INDICADOR MAYOREO */}
       {tienePrecioMayoreoConfigurado && (
         <div className="pt-2">
           {alcanzoMayoreo ? (
@@ -309,6 +297,7 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
         </div>
       )}
 
+      {/* BOTONES DE ACCIÓN */}
       <div className="space-y-2.5 pt-4 border-t border-stone-100">
         <button 
           onClick={handleAgregarCarrito}
@@ -326,13 +315,13 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
         </button>
       </div>
 
-      {/* SECCIÓN DE GARANTÍAS Y ENVÍO (Aporta mucha confianza) */}
+      {/* SECCIÓN DE GARANTÍAS Y ENVÍO */}
       <div className="pt-4 border-t border-stone-100 space-y-2.5">
-         <div className="flex items-center gap-3 text-stone-600">
+        <div className="flex items-center gap-3 text-stone-600">
           <button
             type="button"
             onClick={() => setModalAbierto(true)}
-            className="flex items-center gap-3 text-xs text-stone-600 hover:text-stone-900 mt-3 cursor-pointer"
+            className="flex items-center gap-3 text-xs text-stone-600 hover:text-stone-900 mt-1 cursor-pointer"
           >
             <Truck size={16} className="text-stone-400" />
             <span>Ver tiempos de envío y políticas de devolución</span>
@@ -348,11 +337,10 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
         </div>
       </div>
 
-           {/* MODAL DE GUÍA DE TALLAS */}
+      {/* MODAL DE GUÍA DE TALLAS */}
       <AnimatePresence>
         {isModalOpen && (
           <div>
-
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.4 }}
@@ -372,75 +360,74 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
                   <h3 className="font-serif text-lg font-bold text-stone-800">Guía de Medidas</h3>
                   <button onClick={() => setIsModalOpen(false)} className="text-stone-400 hover:text-stone-600 text-xs font-bold uppercase cursor-pointer">Cerrar</button>
                 </div>
-                <div className="rounded-xl overflow-hidden border border-stone-200 bg-stone-50 aspect-[3/4]">
-                  <div className="space-y-4">
-                        {/* Guía Hombre */}
-                        {producto.categorias?.guia_tallas_hombre_url && (
-                          <div>
-                            <p className="text-[10px]  font-bold uppercase tracking-wider text-stone-500 m-8">Hombre</p>
-                            <div className="rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
-                              <img
-                                src={producto.categorias.guia_tallas_hombre_url}
-                                alt={`Guía Hombre - ${producto.categorias?.nombre}`}
-                                className="w-full object-contain p-2"
-                              />
-                            </div>
+                
+                <div className="space-y-4">
+                  {/* Si hay una Guía General o Única para la categoría */}
+                  {urlGuiaTallas ? (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-2">
+                        {cat?.nombre || "Guía de Tallas"}
+                      </p>
+                      <div className="rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
+                        <img
+                          src={urlGuiaTallas}
+                          alt={`Guía de tallas - ${cat?.nombre}`}
+                          className="w-full object-contain p-2"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Guías por Género acumuladas si no se encontró una directa */}
+                      {cat?.guia_tallas_hombre_url && (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-2">Hombre</p>
+                          <div className="rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
+                            <img src={cat.guia_tallas_hombre_url} alt="Guía Hombre" className="w-full object-contain p-2" />
                           </div>
-                        )}
+                        </div>
+                      )}
 
-                        {/* Guía Mujer */}
-                        {producto.categorias?.guia_tallas_mujer_url && (
-                          <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500 m-8">Mujer</p>
-                            <div className="rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
-                              <img
-                                src={producto.categorias.guia_tallas_mujer_url}
-                                alt={`Guía Mujer - ${producto.categorias?.nombre}`}
-                                className="w-full object-contain p-2"
-                              />
-                            </div>
+                      {cat?.guia_tallas_mujer_url && (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-2">Mujer</p>
+                          <div className="rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
+                            <img src={cat.guia_tallas_mujer_url} alt="Guía Mujer" className="w-full object-contain p-2" />
                           </div>
-                        )}
+                        </div>
+                      )}
 
-                        {/* Guía Niños */}
-                        {producto.categorias?.guia_tallas_ninos_url && (
-                          <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500 m-8">Niños</p>
-                            <div className="rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
-                              <img
-                                src={producto.categorias.guia_tallas_ninos_url}
-                                alt={`Guía Niños - ${producto.categorias?.nombre}`}
-                                className="w-full object-contain p-2"
-                              />
-                            </div>
+                      {cat?.guia_tallas_ninos_url && (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-2">Niños</p>
+                          <div className="rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
+                            <img src={cat.guia_tallas_ninos_url} alt="Guía Niños" className="w-full object-contain p-2" />
                           </div>
-                        )}
+                        </div>
+                      )}
 
-                        {/* Guía Niñas */}
-                        {producto.categorias?.guia_tallas_ninas_url && (
-                          <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500 m-8">Niñas</p>
-                            <div className="rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
-                              <img
-                                src={producto.categorias.guia_tallas_ninas_url}
-                                alt={`Guía Niñas - ${producto.categorias?.nombre}`}
-                                className="w-full object-contain p-2"
-                              />
-                            </div>
+                      {cat?.guia_tallas_ninas_url && (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-2">Niñas</p>
+                          <div className="rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
+                            <img src={cat.guia_tallas_ninas_url} alt="Guía Niñas" className="w-full object-contain p-2" />
                           </div>
-                        )}
-                  </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>        
             </motion.div>
           </div>
         )}
       </AnimatePresence>    
-      {/* Render del Modal */}
-              <EnviosModal
-                isOpen={modalAbierto}
-                onClose={() => setModalAbierto(false)}
-              />  
+
+      {/* Render del Modal de Envíos */}
+      <EnviosModal
+        isOpen={modalAbierto}
+        onClose={() => setModalAbierto(false)}
+      />  
     </div>
   );
 }

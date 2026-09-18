@@ -729,7 +729,7 @@ const cargarOrdenes = async () => {
 
 
 
-  const actualizarGuiaCategoria = async (e: React.ChangeEvent<HTMLInputElement>, campoColumna: "guia_tallas_hombre_url" | "guia_tallas_mujer_url" | "guia_tallas_ninos_url" | "guia_tallas_ninas_url") => {
+  const actualizarGuiaCategoria = async (e: React.ChangeEvent<HTMLInputElement>, campoColumna: "guia_tallas_hombre_url" | "guia_tallas_mujer_url" | "guia_tallas_ninos_url" | "guia_tallas_ninas_url" | "guia_tallas_general_url") => {
     const file = e.target.files?.[0];
     if (!file || !modalGuia.categoriaId) return;
     setSubiendoGuia(true);
@@ -872,7 +872,12 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                 <button onClick={() => setModalGuia({ mostrar: false, categoriaId: null, nombreCategoria: "" })} className="p-1 text-stone-400 hover:text-stone-700"><X size={20} /></button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[{ label: "Hombre", campo: "guia_tallas_hombre_url" }, { label: "Mujer", campo: "guia_tallas_mujer_url" }, { label: "Niños", campo: "guia_tallas_ninos_url" }, { label: "Niñas", campo: "guia_tallas_ninas_url" }].map((tipo) => {
+                {[
+                  { label: "General / Única", campo: "guia_tallas_general_url" },
+                  { label: "Hombre", campo: "guia_tallas_hombre_url" }, 
+                  { label: "Mujer", campo: "guia_tallas_mujer_url" }, 
+                  { label: "Niños", campo: "guia_tallas_ninos_url" }, 
+                  { label: "Niñas", campo: "guia_tallas_ninas_url" }].map((tipo) => {
                   const catActual = categoriasDisponibles.find((c) => c.id === modalGuia.categoriaId) as any;
                   const urlExistente = catActual?.[tipo.campo];
                   return (

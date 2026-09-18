@@ -62,12 +62,19 @@ export default async function ProductoDetalle({ params }: { params: Promise<{ id
   const resolvedParams = await params;
   const id = resolvedParams.id;
 
-  // Traemos el producto con sus relaciones (incluyendo imagenes_producto)
+  // Traemos el producto con sus relaciones (incluyendo guia_tallas_general_url de categorias)
   const { data: producto, error } = await supabase
     .from("productos")
     .select(`
       *,
-      categorias (nombre, guia_tallas_hombre_url, guia_tallas_mujer_url, guia_tallas_ninos_url, guia_tallas_ninas_url),
+      categorias (
+        nombre, 
+        guia_tallas_hombre_url, 
+        guia_tallas_mujer_url, 
+        guia_tallas_ninos_url, 
+        guia_tallas_ninas_url,
+        guia_tallas_general_url
+      ),
       variaciones (*),
       imagenes_producto (*) 
     `)

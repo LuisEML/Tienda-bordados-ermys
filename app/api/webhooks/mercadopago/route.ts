@@ -14,11 +14,25 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 export async function POST(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type") || searchParams.get("topic");
-    const dataId = searchParams.get("data.id") || searchParams.get("id");
+
+    // 1. Leemos query params
+    let type = searchParams.get("type") || searchParams.get("topic");
+    let dataId = searchParams.get("data.id") || searchParams.get("id");
+
+    // 2. Si no vienen en la URL, intentamos leerlos del body JSON
+    if (!dataId) {
+      try {
+        const body = await req.json();
+        type = type || body.type || body.topic;
+        dataId = body.data?.id || body.id;
+      } catch (e) {
+        // El body no era un JSON válido o venía vacío
+      }
+    }
+
 
     // Mercado Pago notifica eventos de tipo 'payment'
-    if (type === "payment" && dataId) {
+    if ((type === "payment" || type === "action.payment.created") && dataId) {
       const payment = new Payment(client);
       const paymentData = await payment.get({ id: dataId });
 
@@ -26,7 +40,19 @@ export async function POST(req: Request) {
       if (paymentData.status === "approved") {
         const ordenId = paymentData.metadata?.orden_id;
 
+
         if (ordenId) {
+
+          // Consultamos primero la orden para verificar si ya estaba pagada
+          const { data: ordenPrevia } = await supabase
+            .from("ordenes")
+            .select("estado_pago")
+            .eq("id", ordenId)
+            .single();
+
+        // Solo procesamos si no se ha marcado como pagado (idempotencia)
+          if (ordenPrevia && ordenPrevia.estado_pago !== "pagado") {    
+
           // 1. Actualizamos el estado en Supabase
           const { data: orden } = await supabase
             .from("ordenes")
@@ -61,13 +87,16 @@ export async function POST(req: Request) {
               })),
             });
           }
+         } 
         }
       }
     }
 
+    // Siempre responder con 200 OK a Mercado Pago rápidamente
     return NextResponse.json({ status: "ok" });
   } catch (error: any) {
     console.error("Error en Webhook Mercado Pago:", error);
+    // Respondemos 200 a MP para evitar reintentos masivos si es error de parsing
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
