@@ -141,6 +141,7 @@ export async function POST(req: Request) {
     // 🛒 FLUJO DE MERCADO PAGO (CON DETALLES E IMÁGENES)
     // ==========================================
     if (metodoPago === "mercadopago") {
+      console.log("--> TOKEN USADO:", process.env.MERCADOPAGO_ACCESS_TOKEN?.substring(0, 10));
       const mpItems = items.map((item: any) => {
         // 1. Limpieza estricta de la URL de la imagen
         const foto = item.imagen_url || item.imagen || "";
@@ -215,7 +216,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: preference.message || "Error en Mercado Pago" }, { status: responseMP.status });
       }
 
-      const urlRedireccion = preference.sandbox_init_point || preference.init_point;
+      const urlRedireccion = preference.init_point || preference.sandbox_init_point;
       return NextResponse.json({ url: urlRedireccion });
     }
   } catch (err: any) {
