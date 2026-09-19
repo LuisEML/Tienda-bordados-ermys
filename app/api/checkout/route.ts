@@ -215,6 +215,10 @@ export async function POST(req: Request) {
 
       const preference = await responseMP.json();
 
+      // 🔍 IMPRIME ESTO EN TU CONSOLA DE VERCEL / SERVIDOR
+console.log("=== PREFERENCIA CREADA EN MP ===");
+console.log(JSON.stringify(preference.items, null, 2));
+
       if (!responseMP.ok) {
         console.error("Error detallado de Mercado Pago:", preference);
         return NextResponse.json({ error: preference.message || "Error en Mercado Pago" }, { status: responseMP.status });
