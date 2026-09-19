@@ -149,8 +149,9 @@ export async function POST(req: Request) {
 
         // 2. Si la foto es una ruta relativa, le pegamos el dominio público de producción
         if (fotoLimpia && !fotoLimpia.startsWith("http")) {
-          const dominioPublico = process.env.APP_URL || origin || "https://www.ropatipicaermys.com.mx/";
-          fotoLimpia = `${dominioPublico}${fotoLimpia.startsWith("/") ? "" : "/"}${fotoLimpia}`;
+          const dominioPublico = (process.env.APP_URL || origin || "https://www.ropatipicaermys.com.mx").replace(/\/$/, "");
+          const rutaFoto = fotoLimpia.startsWith("/") ? fotoLimpia : `/${fotoLimpia}`;
+          fotoLimpia = `${dominioPublico}${rutaFoto}`;
         }
 
         return {
@@ -187,18 +188,21 @@ export async function POST(req: Request) {
         },
         body: JSON.stringify({
           items: mpItems,
+          external_reference: String(nuevaOrden.id), // Identificador directo de tu BD
+          statement_descriptor: "ROPA TIPICA ERMY'S", // Lo que ve el cliente en su estado de cuenta
+          notification_url: `${process.env.APP_URL}/api/webhooks/mercadopago`, // Garantiza la recepción del Webhook
           payer: {
-            name: datosEnvio?.nombre || "",
-            phone: { number: datosEnvio?.telefono || "" },
+            name: datosEnvio?.nombre.trim() || "Cliente",
+            phone: datosEnvio?.telefono ? { number: String(datosEnvio.telefono).replace(/\D/g, "") } : undefined,
             address: {
-              street_name: datosEnvio?.direccion || "",
-              zip_code: datosEnvio?.codigoPostal || "",
+              street_name: datosEnvio?.direccion || undefined,
+              zip_code: datosEnvio?.codigoPostal || undefined,
             },
           },
           back_urls: {
-            success: `${process.env.NEXT_PUBLIC_APP_URL || origin}/success`,
-            failure: `${process.env.NEXT_PUBLIC_APP_URL || origin}/checkout`,
-            pending: `${process.env.NEXT_PUBLIC_APP_URL || origin}/success`,
+            success: `${process.env.APP_URL || origin}/success`,
+            failure: `${process.env.APP_URL || origin}/checkout`,
+            pending: `${process.env.APP_URL || origin}/success`,
           },
           auto_return: "approved",
           metadata: {
