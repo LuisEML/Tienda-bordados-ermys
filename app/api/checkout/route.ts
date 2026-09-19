@@ -137,96 +137,107 @@ export async function POST(req: Request) {
       return NextResponse.json({ url: session.url });
     }
 
-    // ==========================================
-    // 🛒 FLUJO DE MERCADO PAGO (CON DETALLES E IMÁGENES)
-    // ==========================================
-    if (metodoPago === "mercadopago") {
-      console.log("--> TOKEN USADO:", process.env.MERCADOPAGO_ACCESS_TOKEN?.substring(0, 10));
-      const mpItems = items.map((item: any) => {
-        // 1. Limpieza estricta de la URL de la imagen
-        const foto = item.imagen_url || item.imagen || "";
-        let fotoLimpia = foto.replace(/[{}]/g, "").trim();
+   // ==========================================
+  // 🛒 FLUJO DE MERCADO PAGO (DETALLES E IMÁGENES GARANTIZADAS)
+  // ==========================================
+  if (metodoPago === "mercadopago") {
+    const mpItems = items.map((item: any) => {
+      // 1. Limpieza de URL de la imagen
+      const foto = item.imagen_url || item.imagen || "";
+      let fotoLimpia = foto.replace(/[{}]/g, "").trim();
 
-        // 2. Si la foto es una ruta relativa, le pegamos el dominio público de producción
-        if (fotoLimpia && !fotoLimpia.startsWith("http")) {
-          const dominioPublico = (process.env.APP_URL || origin || "https://www.ropatipicaermys.com.mx").replace(/\/$/, "");
-          const rutaFoto = fotoLimpia.startsWith("/") ? fotoLimpia : `/${fotoLimpia}`;
-          fotoLimpia = `${dominioPublico}${rutaFoto}`;
-        }
-
-        return {
-          id: String(item.id || item.producto_id_principal),
-          title: String(item.nombre), // Solo el nombre del producto
-          description: `Talla: ${item.talla || "U"} / Color: ${item.color || "Único"}`, // Variantes en descripción
-          picture_url: fotoLimpia.startsWith("https") ? fotoLimpia : undefined, // MP exige HTTPS
-          category_id: "clothing",
-          quantity: Number(item.cantidad),
-          unit_price: Number(item.precio),
-          currency_id: "MXN",
-        };
-      });
-
-      // 3. Agregar el Costo de Envío como ítem individual
-      if (costoEnvio && Number(costoEnvio) > 0) {
-        mpItems.push({
-          id: "costo-envio",
-          title: "Costo de Envío",
-          description: "Envío a domicilio",
-          picture_url: undefined,
-          category_id: "shipping",
-          quantity: 1,
-          unit_price: Number(costoEnvio),
-          currency_id: "MXN",
-        });
+      if (fotoLimpia && !fotoLimpia.startsWith("http")) {
+        const dominioPublico = (process.env.APP_URL || origin || "https://www.ropatipicaermys.com.mx").replace(/\/$/, "");
+        const rutaFoto = fotoLimpia.startsWith("/") ? fotoLimpia : `/${fotoLimpia}`;
+        fotoLimpia = `${dominioPublico}${rutaFoto}`;
       }
 
-      const responseMP = await fetch("https://api.mercadopago.com/checkout/preferences", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          items: mpItems,
-          external_reference: String(nuevaOrden.id), // Identificador directo de tu BD
-          statement_descriptor: "ROPA TIPICA ERMY'S", // Lo que ve el cliente en su estado de cuenta
-          notification_url: `${process.env.APP_URL}/api/webhooks/mercadopago`, // Garantiza la recepción del Webhook
-          payer: {
-            name: datosEnvio?.nombre.trim() || "Cliente",
-            phone: datosEnvio?.telefono ? { number: String(datosEnvio.telefono).replace(/\D/g, "") } : undefined,
-            address: {
-              street_name: datosEnvio?.direccion || undefined,
-              zip_code: datosEnvio?.codigoPostal || undefined,
-            },
-          },
-          back_urls: {
-            success: `${process.env.APP_URL || origin}/success`,
-            failure: `${process.env.APP_URL || origin}/checkout`,
-            pending: `${process.env.APP_URL || origin}/success`,
-          },
-          auto_return: "approved",
-          metadata: {
-            orden_id: nuevaOrden.id,
-            //costo_envio: String(costoEnvio || 0)
-            direccion_completa: `${datosEnvio?.direccion}, CP ${datosEnvio?.codigoPostal}, ${datosEnvio?.ciudad}, ${datosEnvio?.estado}`,
-          },
-        }),
+      // 2. Construcción de Variantes (Talla y Color)
+      const variacionTexto = [
+        item.talla ? `Talla: ${item.talla}` : null,
+        item.color ? `Color: ${item.color}` : null
+      ].filter(Boolean).join(" / ");
+
+      // 💡 TRUCO CLAVE: Unir la variante directamente al Título
+      // De esta forma Checkout Pro muestra la talla y color en el encabezado principal del pago
+      const tituloCompleto = variacionTexto 
+        ? `${item.nombre} (${variacionTexto})`
+        : String(item.nombre);
+
+      return {
+        id: String(item.id || item.producto_id_principal),
+        title: tituloCompleto, 
+        description: variacionTexto || `Producto: ${item.nombre}`,
+        picture_url: fotoLimpia.startsWith("https") ? fotoLimpia : undefined,
+        category_id: "clothing",
+        quantity: Number(item.cantidad),
+        unit_price: Number(item.precio),
+        currency_id: "MXN",
+      };
+    });
+
+    // 3. Agregar Costo de Envío
+    if (costoEnvio && Number(costoEnvio) > 0) {
+      mpItems.push({
+        id: "costo-envio",
+        title: "Costo de Envío",
+        description: "Envío a domicilio",
+        picture_url: undefined,
+        category_id: "shipping",
+        quantity: 1,
+        unit_price: Number(costoEnvio),
+        currency_id: "MXN",
       });
-
-      const preference = await responseMP.json();
-
-      // 🔍 IMPRIME ESTO EN TU CONSOLA DE VERCEL / SERVIDOR
-console.log("=== PREFERENCIA CREADA EN MP ===");
-console.log(JSON.stringify(preference.items, null, 2));
-
-      if (!responseMP.ok) {
-        console.error("Error detallado de Mercado Pago:", preference);
-        return NextResponse.json({ error: preference.message || "Error en Mercado Pago" }, { status: responseMP.status });
-      }
-
-      const urlRedireccion = preference.init_point || preference.sandbox_init_point;
-      return NextResponse.json({ url: urlRedireccion });
     }
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || origin || "https://www.ropatipicaermys.com.mx";
+
+    const responseMP = await fetch("https://api.mercadopago.com/checkout/preferences", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        items: mpItems,
+        external_reference: String(nuevaOrden.id),
+        statement_descriptor: "ROPA ERMYS",
+        notification_url: `${baseUrl}/api/webhooks/mercadopago`,
+        payer: {
+          name: datosEnvio?.nombre?.trim() || "Cliente",
+          phone: datosEnvio?.telefono ? { number: String(datosEnvio.telefono).replace(/\D/g, "") } : undefined,
+          address: {
+            street_name: datosEnvio?.direccion || undefined,
+            zip_code: datosEnvio?.codigoPostal || undefined,
+          },
+        },
+        back_urls: {
+          success: `${baseUrl}/success`,
+          failure: `${baseUrl}/checkout`,
+          pending: `${baseUrl}/success`,
+        },
+        auto_return: "approved",
+        metadata: {
+          orden_id: nuevaOrden.id,
+          direccion_completa: `${datosEnvio?.direccion || ""}, CP ${datosEnvio?.codigoPostal || ""}, ${datosEnvio?.ciudad || ""}, ${datosEnvio?.estado || ""}`,
+        },
+      }),
+    });
+
+    const preference = await responseMP.json();
+
+    // 🔍 ESTE LOG SALDRÁ EN LA TERMINAL DEL SERVIDOR (NO EN EL NAVEGADOR)
+    console.log("=== PREFERENCIA MP CREADA CON ÉXITO ===");
+    console.log(JSON.stringify(preference.items, null, 2));
+
+    if (!responseMP.ok) {
+      console.error("Error Mercado Pago:", preference);
+      return NextResponse.json({ error: preference.message || "Error en Mercado Pago" }, { status: responseMP.status });
+    }
+
+    const urlRedireccion = preference.init_point || preference.sandbox_init_point;
+    return NextResponse.json({ url: urlRedireccion });
+  }
   } catch (err: any) {
     console.error("Error en API Checkout:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
