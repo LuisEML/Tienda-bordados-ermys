@@ -166,18 +166,18 @@ export async function POST(req: Request) {
       });
 
       // 3. Agregar el Costo de Envío como ítem individual
-      //if (costoEnvio && Number(costoEnvio) > 0) {
-        //mpItems.push({
-          //id: "costo-envio",
-          //title: "Costo de Envío",
-          //description: "Envío a domicilio",
-          //picture_url: undefined,
-          //category_id: "shipping",
-          //quantity: 1,
-          //unit_price: Number(costoEnvio),
-          //currency_id: "MXN",
-        //});
-      //}
+      if (costoEnvio && Number(costoEnvio) > 0) {
+        mpItems.push({
+          id: "costo-envio",
+          title: "Costo de Envío",
+          description: "Envío a domicilio",
+          picture_url: undefined,
+          category_id: "shipping",
+          quantity: 1,
+          unit_price: Number(costoEnvio),
+          currency_id: "MXN",
+        });
+      }
 
       const responseMP = await fetch("https://api.mercadopago.com/checkout/preferences", {
         method: "POST",
