@@ -37,16 +37,6 @@ export default function VistaProducto({ producto }: { producto: any }) {
         }
       });
     }
-
-    // 3. Respaldo opcional: Si la variación tiene array de imágenes, incluirlo también
-    if (Array.isArray(variacionActual?.imagenes)) {
-      variacionActual.imagenes.forEach((url: string) => {
-        if (url && !lista.includes(url)) {
-          lista.push(url);
-        }
-      });
-    }
-
     return lista.length > 0 ? lista : ["/placeholder.jpg"];
   };
 

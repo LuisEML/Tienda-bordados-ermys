@@ -312,7 +312,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
                 .from('fotos-productos')
                 .getPublicUrl(fileName);
               
-              uploadedUrls.push(publicUrl);
+              // uploadedUrls.push(publicUrl);
 
               // 💡 Acumulamos la imagen con su color_hex para guardarla en imagenes_producto
               imagenesPorColorParaBD.push({
@@ -331,7 +331,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
             color_hex: grupo.color_hex,
             stock: t.stock,
             sku: t.sku,
-            imagenes: uploadedUrls // Mantiene compatibilidad con el array legacy en variaciones
+            imagenes: [] // Mantiene compatibilidad con el array legacy en variaciones
           });
         }
       }

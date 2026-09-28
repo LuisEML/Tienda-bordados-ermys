@@ -42,18 +42,20 @@ export async function enviarNotificacionNuevaVenta(datos: DatosNotificacion) {
 
   try {
     const data = await resend.emails.send({
-      from: "Confecciones ERMY'S <contacto@ropatipicaermys.com.mx>", // Cambia por tu dominio verificado en producción
+      from: "Confecciones ERMYS <contacto@ropatipicaermys.com.mx>", // Cambia por tu dominio verificado en producción
       to: [adminEmail],
-      subject: `🚨 ¡Nueva venta recibida! Orden #${datos.ordenId}`,
+      // 2. Dirección de respuesta directa para mejorar reputación SPF/DKIM
+      replyTo: "contacto@ropatipicaermys.com.mx",
+      subject: `Nueva venta recibida - Orden #${datos.ordenId}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-          <h2 style="color: #111; border-bottom: 2px solid #eee; padding-bottom: 10px;">🎉 ¡Tienes una nueva venta!</h2>
+          <h2 style="color: #111; border-bottom: 2px solid #eee; padding-bottom: 10px;">Confirmacion de Nueva Venta</h2>
           <p><strong>Orden ID:</strong> #${datos.ordenId}</p>
           <p><strong>Total:</strong> $${datos.total.toLocaleString("es-MX")} MXN</p>
           
           <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
           
-          <h3 style="color: #444;">👤 Datos del Cliente</h3>
+          <h3 style="color: #444;">Datos del Cliente</h3>
           <p style="margin: 4px 0;"><strong>Nombre:</strong> ${datos.nombreCliente}</p>
           <p style="margin: 4px 0;"><strong>Teléfono:</strong> ${datos.telefono}</p>
           <p style="margin: 4px 0;"><strong>Dirección:</strong> ${datos.direccion}</p>
@@ -61,7 +63,7 @@ export async function enviarNotificacionNuevaVenta(datos: DatosNotificacion) {
           
           <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
           
-          <h3 style="color: #444;">🛍️ Resumen del Pedido</h3>
+          <h3 style="color: #444;">Resumen del Pedido</h3>
           <table style="width: 100%; text-align: left; border-collapse: collapse;">
             <tbody>
               ${listaProductosHtml}

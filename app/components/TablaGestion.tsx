@@ -403,17 +403,107 @@ export default function TablaGestionProductos({
     }
   };
 
-  const ejecutarEliminacion = async () => {
-    if (!idParaEliminar) return;
+  // Cambios a la función de eliminar un producto
+ // 1. Función Helper Robusta para obtener el path relativo dentro del bucket
+function obtenerStoragePath(urlPublica: string, bucketNombre: string) {
+  if (!urlPublica || typeof urlPublica !== "string") return null;
+
+  // Decodificamos %20 y caracteres especiales a texto normal
+  const urlDecodificada = decodeURIComponent(urlPublica);
+
+  const patronPublico = `/object/public/${bucketNombre}/`;
+  const patronSimple = `/${bucketNombre}/`;
+
+  let rutaRelativa = "";
+
+  if (urlDecodificada.includes(patronPublico)) {
+    rutaRelativa = urlDecodificada.split(patronPublico)[1];
+  } else if (urlDecodificada.includes(patronSimple)) {
+    rutaRelativa = urlDecodificada.split(patronSimple)[1];
+  } else {
+    // Si la URL no tiene la estructura previa, intenta obtener solo el nombre del archivo final
+    const partes = urlDecodificada.split("/");
+    rutaRelativa = partes[partes.length - 1];
+  }
+
+  return rutaRelativa || null;
+}
+
+const ejecutarEliminacion = async () => {
+  if (!idParaEliminar) return;
+
+  const BUCKET_NOMBRE = "fotos-productos"; // ⚠️ Ajusta al nombre exacto de tu Bucket en Supabase
+
+  try {
+    // 1. Obtener el producto local para la imagen principal
+    const producto = productos.find((p) => p.id === idParaEliminar);
+    const archivosAEliminar: string[] = [];
+
+    // A) Extraer la imagen principal del producto
+    const imagenPrincipal = producto?.imagen_principal_url;
+    if (imagenPrincipal) {
+      const pathPrincipal = obtenerStoragePath(imagenPrincipal, BUCKET_NOMBRE);
+      if (pathPrincipal) archivosAEliminar.push(pathPrincipal);
+    }
+
+    // B) Consultar las variaciones en la BD para traer sus imágenes
+    const { data: variaciones, error: errorVariaciones } = await supabase
+      .from("variaciones")
+      .select("imagenes")
+      .eq("producto_id", idParaEliminar); // ⚠️ Verifica si tu columna foránea es 'producto_id' o 'producto_id_principal'
+
+    if (!errorVariaciones && variaciones) {
+      variaciones.forEach((v) => {
+        // Si 'imagenes' es un arreglo de URLs
+        if (Array.isArray(v.imagenes)) {
+          v.imagenes.forEach((imgUrl: string) => {
+            const pathVar = obtenerStoragePath(imgUrl, BUCKET_NOMBRE);
+            if (pathVar) archivosAEliminar.push(pathVar);
+          });
+        } 
+        // Si 'imagenes' es un string de una sola URL
+        else if (typeof v.imagenes === "string") {
+          const pathVar = obtenerStoragePath(v.imagenes, BUCKET_NOMBRE);
+          if (pathVar) archivosAEliminar.push(pathVar);
+        }
+      });
+    }
+
+    // 🔍 Log de depuración para la consola (F12)
+    console.log("Rutas acumuladas para eliminar del Storage:", archivosAEliminar);
+
+    // C) Borrar todos los archivos recolectados del Storage
+    if (archivosAEliminar.length > 0) {
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from(BUCKET_NOMBRE)
+        .remove(archivosAEliminar);
+
+      if (storageError) {
+        console.error("❌ Error al eliminar imágenes del Storage:", storageError);
+      } else {
+        console.log("✅ Imágenes eliminadas con éxito de Supabase Storage:", storageData);
+      }
+    }
+
+    // 2. Eliminar el producto de la base de datos
+    // (Asegúrate de tener en Supabase la relación 'ON DELETE CASCADE' en la tabla variaciones, 
+    //  o borra manualmente las variaciones antes)
     const { error } = await supabase.from("productos").delete().eq("id", idParaEliminar);
-    if (error) toast.error("No se pudo eliminar el producto");
-    else {
+
+    if (error) {
+      toast.error("No se pudo eliminar el producto");
+    } else {
       setProductos(productos.filter((p) => p.id !== idParaEliminar));
       setModalEliminar(false);
       setIdParaEliminar(null);
       mostrarAviso("Producto eliminado");
     }
-  };
+
+  } catch (err) {
+    console.error("Error inesperado en el proceso de eliminación:", err);
+    toast.error("Ocurrió un error al procesar la eliminación");
+  }
+};
 
   const ejecutarEliminacionLote = async () => {
     if (seleccionados.length === 0) return;
@@ -467,25 +557,69 @@ export default function TablaGestionProductos({
     }
   };
 
-  // --- Handlers: Imágenes y Galería ---
+  // --- Handlers: Imágenes, Galería y borrar en el buket---
   const cambiarImagen = async (e: React.ChangeEvent<HTMLInputElement>, productoId: string) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setSubiendo(productoId);
-    try {
-      const fileExt = file.name.split(".").pop();
-      const filePath = `productos/${productoId}-${Date.now()}.${fileExt}`;
-      const { error: upErr } = await supabase.storage.from("fotos-productos").upload(filePath, file);
-      if (upErr) throw upErr;
-      const { data: { publicUrl } } = supabase.storage.from("fotos-productos").getPublicUrl(filePath);
-      await supabase.from("productos").update({ imagen_principal_url: publicUrl }).eq("id", productoId);
-      setProductos(productos.map((p) => (p.id === productoId ? { ...p, imagen_principal_url: publicUrl } : p)));
-      mostrarAviso("Imagen actualizada");
-    } catch (error) {
-      toast.error("Error al subir imagen");
-    } finally {
-      setSubiendo(null);
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  setSubiendo(productoId);
+
+  try {
+    const BUCKET_NOMBRE = "fotos-productos";
+
+    // 1. Buscamos la URL de la imagen previa en el estado local
+    const productoActual = productos.find((p) => p.id === productoId);
+    const imagenAnteriorUrl = productoActual?.imagen_principal_url;
+
+    // 2. Subimos la nueva imagen a Supabase Storage
+    const fileExt = file.name.split(".").pop();
+    const filePath = `productos/${productoId}-${Date.now()}.${fileExt}`;
+
+    const { error: upErr } = await supabase.storage.from(BUCKET_NOMBRE).upload(filePath, file);
+    if (upErr) throw upErr;
+
+    // 3. Obtenemos la nueva URL pública
+    const { data: { publicUrl } } = supabase.storage.from(BUCKET_NOMBRE).getPublicUrl(filePath);
+
+    // 4. Actualizamos el registro en la BD
+    const { error: updateErr } = await supabase
+      .from("productos")
+      .update({ imagen_principal_url: publicUrl })
+      .eq("id", productoId);
+
+    if (updateErr) throw updateErr;
+
+    // 5. Si la BD se actualizó con éxito y había una imagen anterior, la eliminamos de Storage
+    if (imagenAnteriorUrl && imagenAnteriorUrl !== publicUrl) {
+      const pathViejo = obtenerStoragePath(imagenAnteriorUrl, BUCKET_NOMBRE);
+
+      if (pathViejo) {
+        const { error: removeErr } = await supabase.storage
+          .from(BUCKET_NOMBRE)
+          .remove([pathViejo]);
+
+        if (removeErr) {
+          console.error("No se pudo eliminar la imagen anterior:", removeErr);
+        } else {
+          console.log("Imagen anterior eliminada de Storage:", pathViejo);
+        }
+      }
     }
+
+    // 6. Actualizamos el estado local
+    setProductos(
+      productos.map((p) =>
+        p.id === productoId ? { ...p, imagen_principal_url: publicUrl } : p
+      )
+    );
+
+    mostrarAviso("Imagen actualizada");
+  } catch (error) {
+    console.error("Error al cambiar la imagen:", error);
+    toast.error("Error al subir imagen");
+  } finally {
+    setSubiendo(null);
+  }
   };
 
   const abrirGaleria = async (producto: Producto) => {
@@ -522,15 +656,49 @@ export default function TablaGestionProductos({
   };
 
   const eliminarMiniatura = async (idMiniatura: string) => {
-    try {
-      const { error } = await supabase.from("imagenes_producto").delete().eq("id", idMiniatura);
-      if (error) throw error;
-      setMiniaturas((prev) => prev.filter((img) => img.id !== idMiniatura));
-      mostrarAviso("Miniatura eliminada");
-    } catch (err: any) {
-      toast.error("Error al eliminar miniatura: " + err.message);
+  try {
+    const BUCKET_NOMBRE = "fotos-productos";
+
+    // 1. Obtener la miniatura localmente para conocer su URL exacta
+    const miniaturaAEliminar = miniaturas.find((img) => img.id === idMiniatura);
+    const imagenUrl = miniaturaAEliminar?.imagen_url;
+
+    if (!imagenUrl) {
+      toast.error("No se encontró la URL de la miniatura");
+      return;
     }
-  };
+
+    // 2. Eliminar el registro ÚNICAMENTE de la tabla 'imagenes_producto'
+    const { error: dbError } = await supabase
+      .from("imagenes_producto")
+      .delete()
+      .eq("id", idMiniatura);
+
+    if (dbError) throw dbError;
+
+    // 3. Borrar el archivo físico de Supabase Storage
+    const filePath = obtenerStoragePath(imagenUrl, BUCKET_NOMBRE);
+    if (filePath) {
+      const { error: storageError } = await supabase.storage
+        .from(BUCKET_NOMBRE)
+        .remove([filePath]);
+
+      if (storageError) {
+        console.error("Error al borrar el archivo físico de Storage:", storageError);
+      } else {
+        console.log("Archivo borrado de Storage:", filePath);
+      }
+    }
+
+    // 4. Actualizar el estado local de la UI
+    setMiniaturas((prev) => prev.filter((img) => img.id !== idMiniatura));
+    mostrarAviso("Miniatura eliminada correctamente");
+
+  } catch (err: any) {
+    console.error("Error al eliminar miniatura:", err);
+    toast.error("Error al eliminar miniatura: " + err.message);
+  }
+};
 
   const cambiarColorMiniatura = async (idMiniatura: string, nuevoColorHex: string | null) => {
     try {
@@ -729,22 +897,73 @@ const cargarOrdenes = async () => {
 
 
 
-  const actualizarGuiaCategoria = async (e: React.ChangeEvent<HTMLInputElement>, campoColumna: "guia_tallas_hombre_url" | "guia_tallas_mujer_url" | "guia_tallas_ninos_url" | "guia_tallas_ninas_url" | "guia_tallas_general_url") => {
+  const actualizarGuiaCategoria = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    campoColumna: "guia_tallas_hombre_url" | "guia_tallas_mujer_url" | "guia_tallas_ninos_url" | "guia_tallas_ninas_url" | "guia_tallas_general_url"
+  ) => {
     const file = e.target.files?.[0];
     if (!file || !modalGuia.categoriaId) return;
+
     setSubiendoGuia(true);
+
     try {
+      const BUCKET_NOMBRE = "fotos-productos";
+
+      // 1. Consultamos la base de datos directamente para obtener la URL anterior de forma 100% precisa
+      const { data: categoriaBD } = await supabase
+        .from("categorias")
+        .select(campoColumna)
+        .eq("id", modalGuia.categoriaId)
+        .single();
+
+      const urlGuiaAnterior = categoriaBD ? (categoriaBD as Record<string, any>)[campoColumna] : null;
+      console.log("1. URL anterior obtenida de la BD:", urlGuiaAnterior);
+
+      // 2. Subimos el nuevo archivo
       const fileName = `${Date.now()}-${campoColumna}-${file.name}`;
-      const { error: upErr } = await supabase.storage.from("fotos-productos").upload(fileName, file);
+      const { error: upErr } = await supabase.storage.from(BUCKET_NOMBRE).upload(fileName, file);
       if (upErr) throw upErr;
-      const { data } = supabase.storage.from("fotos-productos").getPublicUrl(fileName);
+
+      // 3. Obtenemos la nueva URL pública
+      const { data } = supabase.storage.from(BUCKET_NOMBRE).getPublicUrl(fileName);
       const publicUrl = data.publicUrl;
-      const { error: dbErr } = await supabase.from("categorias").update({ [campoColumna]: publicUrl }).eq("id", modalGuia.categoriaId);
+
+      // 4. Actualizamos el registro en la BD
+      const { error: dbErr } = await supabase
+        .from("categorias")
+        .update({ [campoColumna]: publicUrl })
+        .eq("id", modalGuia.categoriaId);
+
       if (dbErr) throw dbErr;
-      
-      setCategoriasDisponibles((prev) => prev.map((cat) => cat.id === modalGuia.categoriaId ? { ...cat, [campoColumna]: publicUrl } : cat));
+
+      // 5. Si existía una imagen anterior y es diferente a la nueva, la eliminamos de Storage
+      if (urlGuiaAnterior && urlGuiaAnterior !== publicUrl) {
+        const pathViejo = obtenerStoragePath(urlGuiaAnterior, BUCKET_NOMBRE);
+        console.log("2. Path relativo para borrar:", pathViejo);
+
+        if (pathViejo) {
+          const { data: removeData, error: removeErr } = await supabase.storage
+            .from(BUCKET_NOMBRE)
+            .remove([pathViejo]);
+
+          if (removeErr) {
+            console.error("No se pudo eliminar la guía de tallas anterior:", removeErr);
+          } else {
+            console.log("3. Guía de tallas anterior eliminada de Storage:", removeData);
+          }
+        }
+      }
+
+      // 6. Actualizamos el estado local
+      setCategoriasDisponibles((prev) =>
+        prev.map((cat) =>
+          cat.id === modalGuia.categoriaId ? { ...cat, [campoColumna]: publicUrl } : cat
+        )
+      );
+
       mostrarAviso("Guía de tallas actualizada correctamente");
     } catch (err: any) {
+      console.error("Error al actualizar la guía:", err);
       toast.error("Error al actualizar la guía: " + err.message);
     } finally {
       setSubiendoGuia(false);
@@ -786,6 +1005,47 @@ const cargarOrdenes = async () => {
     setEliminando(false);
     setIdAEliminar(null);
   };
+
+  const confirmarEliminacionOrden = async () => {
+  if (!ordenAEliminar) return;
+
+  const ordenId = ordenAEliminar.id;
+  setEliminandoId(ordenId);
+
+  try {
+    // 1. Borramos los detalles de la orden
+    const { error: errorDetalles } = await supabase
+      .from("detalles_orden")
+      .delete()
+      .eq("orden_id", ordenId);
+
+    if (errorDetalles) {
+      console.error("Error al borrar los detalles:", errorDetalles);
+      alert("No se pudieron borrar los artículos asociados a la orden.");
+      return;
+    }
+
+    // 2. Borramos la orden maestra
+    const { error: errorOrden } = await supabase
+      .from("ordenes")
+      .delete()
+      .eq("id", ordenId);
+
+    if (errorOrden) {
+      console.error("Error al borrar la orden:", errorOrden);
+      alert("Hubo un error al eliminar el registro principal.");
+      return;
+    }
+
+    // 3. Actualizamos la lista local y cerramos el modal
+    setOrdenes((prev) => prev.filter((o) => o.id !== ordenId));
+    setOrdenAEliminar(null);
+  } catch (err) {
+    console.error("Error inesperado:", err);
+  } finally {
+    setEliminandoId(null);
+  }
+};
 
 
 // 🔍 Filtro exclusivo para pedidos
@@ -1949,7 +2209,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
             </div>
 
             <h3 className="text-base font-bold text-stone-900 mb-1">
-              ¿Eliminar orden #{ordenAEliminar.id}?
+              ¿iElimnar orden #{ordenAEliminar.id}?
             </h3>
 
             <p className="text-xs text-stone-500 mb-6">
@@ -1968,7 +2228,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
               </button>
               
               <button
-                onClick={confirmarEliminacion}
+                onClick={confirmarEliminacionOrden}
                 disabled={eliminandoId === ordenAEliminar.id}
                 className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
               >

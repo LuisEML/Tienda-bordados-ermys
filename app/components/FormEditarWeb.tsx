@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, ChangeEvent } from "react";
-import { Save, ChevronDown, ChevronUp, Loader2, Play, Quote, FileText, Image as ImageIcon, Upload,Video } from "lucide-react";
+import { Save, ChevronDown, ChevronUp, Loader2, Play, Quote, FileText, Image as ImageIcon, Upload,Video, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -334,6 +334,29 @@ export default function FormEditarWebCompleto() {
   ]);
 
 
+  // Helper para extraer la ruta de Supabase decodificando %20 a espacios reales
+  function obtenerStoragePath(urlPublica: string, bucketNombre: string) {
+    if (!urlPublica || typeof urlPublica !== "string") return null;
+
+    const urlDecodificada = decodeURIComponent(urlPublica);
+    const patronPublico = `/object/public/${bucketNombre}/`;
+    const patronSimple = `/${bucketNombre}/`;
+
+    let rutaRelativa = "";
+
+    if (urlDecodificada.includes(patronPublico)) {
+      rutaRelativa = urlDecodificada.split(patronPublico)[1];
+    } else if (urlDecodificada.includes(patronSimple)) {
+      rutaRelativa = urlDecodificada.split(patronSimple)[1];
+    } else {
+      const partes = urlDecodificada.split("/");
+      rutaRelativa = partes[partes.length - 1];
+    }
+
+    return rutaRelativa || null;
+  }
+
+
   // =========================================================
   // FUNCIÓN PARA SUBIR LA IMAGEN DEL HERO AL STORAGE
   // =========================================================
@@ -343,27 +366,49 @@ export default function FormEditarWebCompleto() {
 
     setSubiendoImagen(true);
     try {
-      // 1. Definimos un nombre único para el archivo usando la fecha actual
+      const BUCKET_NOMBRE = "fotos-productos";
+
+      // 1. Guardamos la URL anterior si existe para limpiarla después
+      const imagenPrevia = heroImagen;
+
+      // 2. Definimos un nombre único para el archivo nuevo
       const fileExt = file.name.split(".").pop();
       const fileName = `hero-portada-${Date.now()}.${fileExt}`;
-      
-      // 2. Subimos el archivo a tu bucket de fotos de productos
+
+      // 3. Subimos el nuevo archivo al bucket
       const { error: uploadError } = await supabase.storage
-        .from("fotos-productos") // Asegúrate de usar el nombre correcto de tu bucket
+        .from(BUCKET_NOMBRE)
         .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
-      // 3. Obtenemos la URL pública del archivo subido
+      // 4. Obtenemos la URL pública del nuevo archivo
       const { data: { publicUrl } } = supabase.storage
-        .from("fotos-productos")
+        .from(BUCKET_NOMBRE)
         .getPublicUrl(fileName);
 
-      // 4. Guardamos la URL pública en el estado local para previsualizarla
+      // 5. Borramos la imagen previa del bucket si existía
+      if (imagenPrevia) {
+        const filePathViejo = obtenerStoragePath(imagenPrevia, BUCKET_NOMBRE);
+        if (filePathViejo) {
+          const { error: removeError } = await supabase.storage
+            .from(BUCKET_NOMBRE)
+            .remove([filePathViejo]);
+
+          if (removeError) {
+            console.error("Error al eliminar la portada anterior del bucket:", removeError.message);
+          } else {
+            console.log("Portada anterior eliminada del Storage:", filePathViejo);
+          }
+        }
+      }
+
+      // 6. Actualizamos el estado local
       setHeroImagen(publicUrl);
       toast.success("¡Imagen de portada cargada con éxito!", {
-         description: "Recuerda guardar los cambios finales abajo",
+        description: "Recuerda guardar los cambios finales abajo",
       });
+
     } catch (err: any) {
       toast.error("Error al subir la imagen", {
         description: err.message,
@@ -375,72 +420,243 @@ export default function FormEditarWebCompleto() {
 
 
   // =========================================================
-  // FUNCIÓN GENÉRICA PARA SUBIR VIDEOS AL STORAGE
+  // FUNCIÓN GENÉRICA PARA SUBIR VIDEOS AL STORAGE CON CLEANUP
   // =========================================================
   const handleSubirVideo = async (e: ChangeEvent<HTMLInputElement>, videoNumero: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validación del formato para asegurar que solo suban videos
     if (!file.type.startsWith("video/")) {
-      toast.error("Por favor, selecciona un archivo de video válido (MP4, WebM, etc.)")
-      // alert("Por favor, selecciona un archivo de video válido (MP4, WebM, etc.)");
+      toast.error("Por favor, selecciona un archivo de video válido (MP4, WebM, etc.)");
       return;
     }
 
     setSubiendoVideo(prev => ({ ...prev, [videoNumero]: true }));
     try {
+      const BUCKET_NOMBRE = "fotos-productos";
+
+      // 1. Identificamos la URL del video anterior según el slot (1, 2 o 3)
+      let videoPrevioUrl = "";
+      if (videoNumero === 1) videoPrevioUrl = video1Url;
+      if (videoNumero === 2) videoPrevioUrl = video2Url;
+      if (videoNumero === 3) videoPrevioUrl = video3Url;
+
+      // 2. Generamos un nombre único para el nuevo video
       const fileExt = file.name.split(".").pop();
       const fileName = `promo-video-${videoNumero}-${Date.now()}.${fileExt}`;
-      
+
+      // 3. Subimos el nuevo archivo de video
       const { error: uploadError } = await supabase.storage
-        .from("fotos-productos") // Reutilizamos tu bucket para archivos multimedia
+        .from(BUCKET_NOMBRE)
         .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
+      // 4. Obtenemos la nueva URL pública
       const { data: { publicUrl } } = supabase.storage
-        .from("fotos-productos")
+        .from(BUCKET_NOMBRE)
         .getPublicUrl(fileName);
 
-      // Asignamos la URL obtenida al estado del video correspondiente
+      // 5. Borramos el video anterior del bucket si existía una URL válida de Supabase
+      if (videoPrevioUrl) {
+        const filePathViejo = obtenerStoragePath(videoPrevioUrl, BUCKET_NOMBRE);
+        if (filePathViejo) {
+          const { error: removeError } = await supabase.storage
+            .from(BUCKET_NOMBRE)
+            .remove([filePathViejo]);
+
+          if (removeError) {
+            console.error(`Error al borrar el video ${videoNumero} anterior:`, removeError.message);
+          } else {
+            console.log(`Video ${videoNumero} anterior eliminado del Storage:`, filePathViejo);
+          }
+        }
+      }
+
+      // 6. Actualizamos la URL en el estado correspondiente
       if (videoNumero === 1) setVideo1Url(publicUrl);
       if (videoNumero === 2) setVideo2Url(publicUrl);
       if (videoNumero === 3) setVideo3Url(publicUrl);
 
-      toast.success(`¡Video ${videoNumero} subido con éxito!`)
-      // alert(`¡Video ${videoNumero} subido con éxito!`);
+      toast.success(`¡Video ${videoNumero} subido con éxito!`);
     } catch (err: any) {
-      toast.error("Error al subir el video:", {
+      toast.error("Error al subir el video", {
         description: err.message,
       });
-      // alert("Error al subir el video: " + err.message);
     } finally {
       setSubiendoVideo(prev => ({ ...prev, [videoNumero]: false }));
     }
   };
 
 
-  // --- FUNCIÓN PARA SUBIR LA IMAGEN DE ESTA SECCIÓN ---
+  // =========================================================
+  // FUNCIÓN PARA SUBIR LA IMAGEN DE CREACIONES ÚNICAS
+  // =========================================================
   const handleSubirImagenCreaciones = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  setSubiendoImgCreaciones(true);
-  try {
-    const fileName = `inicio/creaciones_${Date.now()}.${file.name.split('.').pop()}`;
-    const { data, error } = await supabase.storage.from('fotos-productos').upload(fileName, file);
+    setSubiendoImgCreaciones(true);
+    try {
+      const BUCKET_NOMBRE = "fotos-productos";
 
-    if (error) throw error;
+      // 1. Guardamos la URL previa si existe para eliminarla después
+      const imagenPrevia = creacionesImagen;
 
-    const { data: publicUrlData } = supabase.storage.from('fotos-productos').getPublicUrl(fileName);
-    setCreacionesImagen(publicUrlData.publicUrl);
-    toast.success("Imagen subida correctamente");
-  } catch (err: any) {
-    toast.error("Error al subir la imagen: " + err.message);
-  } finally {
-    setSubiendoImgCreaciones(false);
-  }
+      // 2. Definimos el nombre único dentro de la carpeta 'inicio'
+      const fileExt = file.name.split('.').pop();
+      const fileName = `inicio/creaciones_${Date.now()}.${fileExt}`;
+
+      // 3. Subimos la nueva imagen
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET_NOMBRE)
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // 4. Obtenemos la URL pública de la nueva imagen
+      const { data: { publicUrl } } = supabase.storage
+        .from(BUCKET_NOMBRE)
+        .getPublicUrl(fileName);
+
+      // 5. Eliminamos la imagen anterior del Storage si existía
+      if (imagenPrevia) {
+        const filePathViejo = obtenerStoragePath(imagenPrevia, BUCKET_NOMBRE);
+        if (filePathViejo) {
+          const { error: removeError } = await supabase.storage
+            .from(BUCKET_NOMBRE)
+            .remove([filePathViejo]);
+
+          if (removeError) {
+            console.error("Error al borrar la imagen anterior de creaciones:", removeError.message);
+          } else {
+            console.log("Imagen anterior de creaciones eliminada del Storage:", filePathViejo);
+          }
+        }
+      }
+
+      // 6. Actualizamos el estado local
+      setCreacionesImagen(publicUrl);
+      toast.success("Imagen subida correctamente");
+    } catch (err: any) {
+      toast.error("Error al subir la imagen: " + err.message);
+    } finally {
+      setSubiendoImgCreaciones(false);
+    }
+  };
+
+
+  // Función para subir la imagen de la sección de quienes somos
+  // =========================================================
+  // FUNCIÓN PARA SUBIR LA IMAGEN DE QUIÉNES SOMOS
+  // =========================================================
+  const handleSubirImagenQuienes = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSubiendoImgQuienes(true);
+    try {
+      const BUCKET_NOMBRE = "fotos-productos";
+
+      // 1. Guardamos la URL previa antes de reemplazar
+      const imagenPrevia = quienesSomosImagen;
+
+      // 2. Generamos el nombre del archivo dentro de la carpeta 'nosotros'
+      const fileExt = file.name.split(".").pop();
+      const fileName = `nosotros/quienes_${Date.now()}.${fileExt}`;
+
+      // 3. Subimos la nueva imagen
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET_NOMBRE)
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // 4. Obtenemos la nueva URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from(BUCKET_NOMBRE)
+        .getPublicUrl(fileName);
+
+      // 5. Eliminamos la imagen anterior si existía en el Storage
+      if (imagenPrevia) {
+        const filePathViejo = obtenerStoragePath(imagenPrevia, BUCKET_NOMBRE);
+        if (filePathViejo) {
+          const { error: removeError } = await supabase.storage
+            .from(BUCKET_NOMBRE)
+            .remove([filePathViejo]);
+
+          if (removeError) {
+            console.error("Error al borrar la imagen anterior de Quiénes Somos:", removeError.message);
+          } else {
+            console.log("Imagen anterior de Quiénes Somos eliminada del Storage:", filePathViejo);
+          }
+        }
+      }
+
+      // 6. Actualizamos el estado
+      setQuienesSomosImagen(publicUrl);
+      toast.success("Imagen actualizada correctamente");
+    } catch (err: any) {
+      toast.error("Error al subir: " + err.message);
+    } finally {
+      setSubiendoImgQuienes(false);
+    }
+  };
+
+  // =========================================================
+  // FUNCIÓN PARA SUBIR LA IMAGEN DE LEGADO
+  // =========================================================
+  const handleSubirImagenLegado = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSubiendoImgLegado(true);
+    try {
+      const BUCKET_NOMBRE = "fotos-productos";
+
+      // 1. Guardamos la URL previa antes de reemplazar
+      const imagenPrevia = legadoImagen;
+
+      // 2. Generamos el nombre del archivo dentro de la carpeta 'nosotros'
+      const fileExt = file.name.split(".").pop();
+      const fileName = `nosotros/legado_${Date.now()}.${fileExt}`;
+
+      // 3. Subimos la nueva imagen
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET_NOMBRE)
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // 4. Obtenemos la nueva URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from(BUCKET_NOMBRE)
+        .getPublicUrl(fileName);
+
+      // 5. Eliminamos la imagen anterior si existía en el Storage
+      if (imagenPrevia) {
+        const filePathViejo = obtenerStoragePath(imagenPrevia, BUCKET_NOMBRE);
+        if (filePathViejo) {
+          const { error: removeError } = await supabase.storage
+            .from(BUCKET_NOMBRE)
+            .remove([filePathViejo]);
+
+          if (removeError) {
+            console.error("Error al borrar la imagen anterior de Legado:", removeError.message);
+          } else {
+            console.log("Imagen anterior de Legado eliminada del Storage:", filePathViejo);
+          }
+        }
+      }
+
+      // 6. Actualizamos el estado
+      setLegadoImagen(publicUrl);
+      toast.success("Imagen de Legado actualizada correctamente");
+    } catch (err: any) {
+      toast.error("Error al subir: " + err.message);
+    } finally {
+      setSubiendoImgLegado(false);
+    }
   };
 
 
@@ -656,9 +872,28 @@ export default function FormEditarWebCompleto() {
                   <label className="block text-[9px] font-bold uppercase tracking-widest text-stone-400">Imagen de Portada Principal</label>
                   <div className="border border-stone-200 rounded-xl p-4 bg-stone-50 flex flex-col md:flex-row items-center gap-6">
                     {/* Caja de Previsualización */}
-                    <div className="relative w-full md:w-48 aspect-video rounded-lg overflow-hidden border border-stone-200 bg-stone-100 flex items-center justify-center">
+                    {/* Caja de Previsualización */}
+                    <div className="relative w-full md:w-48 aspect-video rounded-lg overflow-hidden border border-stone-200 bg-stone-100 flex items-center justify-center group">
                       {heroImagen ? (
-                        <img src={heroImagen} className="w-full h-full object-cover" alt="Previsualización Hero" />
+                        <>
+                          <img src={heroImagen} className="w-full h-full object-cover" alt="Previsualización Hero" />
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const BUCKET_NOMBRE = "fotos-productos";
+                              const path = obtenerStoragePath(heroImagen, BUCKET_NOMBRE);
+                              if (path) {
+                                await supabase.storage.from(BUCKET_NOMBRE).remove([path]);
+                              }
+                              setHeroImagen("");
+                              toast.info("Imagen quitada del banner");
+                            }}
+                            className="absolute top-2 right-2 p-1.5 bg-red-600/90 hover:bg-red-600 text-white rounded-lg transition-opacity shadow-sm"
+                            title="Eliminar imagen"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
                       ) : (
                         <div className="flex flex-col items-center text-stone-300">
                           <ImageIcon className="w-8 h-8 mb-1" />
@@ -1110,21 +1345,7 @@ export default function FormEditarWebCompleto() {
                           type="file"
                           accept="image/*"
                           className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            setSubiendoImgQuienes(true);
-                            const fileName = `nosotros/quienes_${Date.now()}.${file.name.split('.').pop()}`;
-                            const { data, error } = await supabase.storage.from('fotos-productos').upload(fileName, file);
-                            if (!error && data) {
-                              const { data: publicUrlData } = supabase.storage.from('fotos-productos').getPublicUrl(fileName);
-                              setQuienesSomosImagen(publicUrlData.publicUrl);
-                              toast.success("Imagen actualizada");
-                            } else if (error) {
-                              toast.error("Error al subir: " + error.message);
-                            }
-                            setSubiendoImgQuienes(false);
-                          }}
+                          onChange={handleSubirImagenQuienes}
                         />
                       </label>
                     </div>
@@ -1218,21 +1439,7 @@ export default function FormEditarWebCompleto() {
                           type="file"
                           accept="image/*"
                           className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            setSubiendoImgLegado(true);
-                            const fileName = `nosotros/legado_${Date.now()}.${file.name.split('.').pop()}`;
-                            const { data, error } = await supabase.storage.from('fotos-productos').upload(fileName, file);
-                            if (!error && data) {
-                              const { data: publicUrlData } = supabase.storage.from('fotos-productos').getPublicUrl(fileName);
-                              setLegadoImagen(publicUrlData.publicUrl);
-                              toast.success("Imagen de Legado actualizada");
-                            } else if (error) {
-                              toast.error("Error al subir: " + error.message);
-                            }
-                            setSubiendoImgLegado(false);
-                          }}
+                          onChange={handleSubirImagenLegado}
                         />
                       </label>
                     </div>
