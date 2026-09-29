@@ -71,6 +71,7 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
     (v: any) => v.color_nombre === colorActivo && v.stock > 0
   ) : [];
 
+  
   // Funciones para el contador
   const incrementar = () => {
     const maxStock = variacionSeleccionada ? variacionSeleccionada.stock : 10;
@@ -79,7 +80,41 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
 
   const decrementar = () => {
     if (cantidad > 1) setCantidad(cantidad - 1);
+  }; 
+
+  // Función para cuando el usuario escribe en el input
+  const handleCantidadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const maxStock = variacionSeleccionada ? variacionSeleccionada.stock : 10;
+
+    // Si está borrando el campo, permitimos que quede vacío temporalmente mientras escribe
+    if (val === "") {
+      setCantidad(0);
+      return;
+    }
+
+    const num = parseInt(val, 10);
+
+    if (!isNaN(num)) {
+      if (num > maxStock) {
+        setCantidad(maxStock); // Limita al máximo disponible
+      } else if (num < 1) {
+        setCantidad(1);
+      } else {
+        setCantidad(num);
+      }
+    }
   };
+
+
+
+// Función para cuando el input pierde el foco (onBlur)
+const handleCantidadBlur = () => {
+  // Si lo dejó en 0 o vacío, lo regresamos a 1
+  if (!cantidad || cantidad < 1) {
+    setCantidad(1);
+  }
+};
 
   const handleComprarAhora = () => {
     if (!tallaSeleccionada) {
@@ -253,21 +288,32 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
         <span className="text-[9px] uppercase font-bold text-stone-400 tracking-[0.2em] block mb-2.5">
           Cantidad
         </span>
-        <div className="flex items-center w-32 border border-stone-200 rounded-xl bg-stone-50/50">
+        <div className="flex items-center w-36 border border-stone-200 rounded-xl bg-stone-50/50 overflow-hidden">
           <button 
+            type="button"
             onClick={decrementar}
             disabled={!tallaSeleccionada}
-            className="w-10 h-10 flex items-center justify-center text-stone-500 hover:text-stone-800 disabled:opacity-30 cursor-pointer"
+            className="w-10 h-10 flex items-center justify-center text-stone-500 hover:text-stone-800 disabled:opacity-30 cursor-pointer shrink-0"
           >
             <Minus size={14} />
           </button>
-          <span className="flex-1 text-center font-sans text-sm font-bold text-stone-800">
-            {tallaSeleccionada ? cantidad : 1}
-          </span>
+
+          <input
+            type="number"
+            disabled={!tallaSeleccionada}
+            value={!tallaSeleccionada ? 1 : cantidad === 0 ? "" : cantidad}
+            onChange={handleCantidadChange}
+            onBlur={handleCantidadBlur}
+            min={1}
+            max={variacionSeleccionada ? variacionSeleccionada.stock : 10}
+            className="w-full text-center font-sans text-sm font-bold text-stone-800 bg-transparent focus:outline-none disabled:opacity-30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+
           <button 
+            type="button"
             onClick={incrementar}
             disabled={!tallaSeleccionada}
-            className="w-10 h-10 flex items-center justify-center text-stone-500 hover:text-stone-800 disabled:opacity-30 cursor-pointer"
+            className="w-10 h-10 flex items-center justify-center text-stone-500 hover:text-stone-800 disabled:opacity-30 cursor-pointer shrink-0"
           >
             <Plus size={14} />
           </button>
