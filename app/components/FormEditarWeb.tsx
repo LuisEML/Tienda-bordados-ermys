@@ -41,8 +41,6 @@ export default function FormEditarWebCompleto() {
   const [seccionAbiertaNosotros, setSeccionAbiertaNosotros] = useState<string | null>("hero");
 
 
-
-
   // =========================================================
   // ESTADOS DEL CONTENIDO (Reflejando la estructura del JSON)
   // =========================================================
@@ -114,22 +112,6 @@ export default function FormEditarWebCompleto() {
     const [cierreCita, setCierreCita] = useState("");
 
 
-
-     // Función helper para generar la "foto" (snapshot) del estado actual
-  // const obtenerSnapshot = () => {
-  //   return JSON.stringify({
-  //     heroTitulo, heroSubtitulo, heroImagen,
-  //     video1Url, video1Titulo, video2Url, video2Titulo, video3Url, video3Titulo,
-  //     creacionesTitulo, creacionesDesc, creacionesImagen, badge1Titulo, badge1Subtitulo, badge2Titulo, badge2Subtitulo,
-  //     testimonio1Nombre, testimonio1Comentario, testimonio2Nombre, testimonio2Comentario, testimonio3Nombre, testimonio3Comentario,
-  //     nosotrosHeroSub, nosotrosHeroTitulo, nosotrosHeroLema,
-  //     quienesSomosTitulo, quienesSomosDesc, quienesSomosImagen,
-  //     legadoTitulo, legadoDesc, legadoImagen, num1Val, num1Tag, num2Val, num2Tag, num3Val, num3Tag,
-  //     misionDesc, visionDesc, cierreCita
-  //   });
-  // };
-
-
   // Helpers para generar snapshot de cada sección
   const obtenerSnapshotInicio = () => JSON.stringify({
     heroTitulo, heroSubtitulo, heroImagen,
@@ -187,126 +169,157 @@ export default function FormEditarWebCompleto() {
   
 
   // =========================================================
-  // CARGAR DATOS DESDE SUPABASE AL INICIAR
-  // =========================================================
-  useEffect(() => {
-    const cargarTodoElContenido = async () => {
-      try {
-        // Cargar Inicio
-        const { data: inicioData } = await supabase
-          .from("configuracion_web")
-          .select("contenido")
-          .eq("id", "pagina_inicio")
-          .single();
+// CARGAR DATOS DESDE SUPABASE AL INICIAR
+// =========================================================
+useEffect(() => {
+  const cargarTodoElContenido = async () => {
+    try {
+      // Cargar Inicio
+      const { data: inicioData } = await supabase
+        .from("configuracion_web")
+        .select("contenido")
+        .eq("id", "pagina_inicio")
+        .single();
 
-        if (inicioData?.contenido) {
-          const c = inicioData.contenido;
-          setHeroTitulo(c.hero?.titulo || "");
-          setHeroSubtitulo(c.hero?.subtitulo || "");
-          setHeroImagen(c.hero?.imagen_url || ""); // Cargamos la imagen guardada
-          
-          // Cargar videos y sus títulos correspondientes
-          setVideoTituloPrincipal(c.seccion_videos?.titulo || "");
-          setVideoSubtitulo(c.seccion_videos?.subtitulo || "");
+      if (inicioData?.contenido) {
+        const c = inicioData.contenido;
+        setHeroTitulo(c.hero?.titulo || "");
+        setHeroSubtitulo(c.hero?.subtitulo || "");
+        setHeroImagen(c.hero?.imagen_url || "");
 
-          setVideo1Url(c.seccion_videos?.videos?.[0]?.url || "");
-          setVideo1Titulo(c.seccion_videos?.videos?.[0]?.titulo || "Selección de Fibras");
+        // Cargar videos y sus títulos correspondientes
+        setVideoTituloPrincipal(c.seccion_videos?.titulo || "");
+        setVideoSubtitulo(c.seccion_videos?.subtitulo || "");
+        setVideo1Url(c.seccion_videos?.videos?.[0]?.url || "");
+        setVideo1Titulo(c.seccion_videos?.videos?.[0]?.titulo || "Selección de Fibras");
+        setVideo2Url(c.seccion_videos?.videos?.[1]?.url || "");
+        setVideo2Titulo(c.seccion_videos?.videos?.[1]?.titulo || "El Arte de la Aguja");
+        setVideo3Url(c.seccion_videos?.videos?.[2]?.url || "");
+        setVideo3Titulo(c.seccion_videos?.videos?.[2]?.titulo || "Acabados de Alta Costura");
 
-          setVideo2Url(c.seccion_videos?.videos?.[1]?.url || "");
-          setVideo2Titulo(c.seccion_videos?.videos?.[1]?.titulo || "El Arte de la Aguja");
+        // Creaciones únicas
+        setCreacionesTitulo(c.creaciones_unicas?.titulo || "");
+        setCreacionesDesc(c.creaciones_unicas?.descripcion || "");
+        setCreacionesImagen(c.creaciones_unicas?.imagen_url || "");
 
-          setVideo3Url(c.seccion_videos?.videos?.[2]?.url || "");
-          setVideo3Titulo(c.seccion_videos?.videos?.[2]?.titulo || "Acabados de Alta Costura");
-          
-          setCreacionesTitulo(c.creaciones_unicas?.titulo || "");
-          setCreacionesDesc(c.creaciones_unicas?.descripcion || "");
-          setCreacionesImagen(c.creaciones_unicas?.imagen_url || "");
-          setTestimonio1Nombre(c.testimonios?.[0]?.nombre || "");
-          setTestimonio1Comentario(c.testimonios?.[0]?.comentario || "");
-          setTestimonio2Nombre(c.testimonios?.[1]?.nombre || "");
-          setTestimonio2Comentario(c.testimonios?.[1]?.comentario || "");
-          setTestimonio3Nombre(c.testimonios?.[2]?.nombre || "");
-          setTestimonio3Comentario(c.testimonios?.[2]?.comentario || "");
-        }
+        // Insignias (Badges)
+        setBadge1Titulo(c.creaciones_unicas?.badge1_titulo || "");
+        setBadge1Subtitulo(c.creaciones_unicas?.badge1_subtitulo || "");
+        setBadge2Titulo(c.creaciones_unicas?.badge2_titulo || "");
+        setBadge2Subtitulo(c.creaciones_unicas?.badge2_subtitulo || "");
 
-        // Cargar Nosotros
-        const { data: nosotrosData } = await supabase
-          .from("configuracion_web")
-          .select("contenido")
-          .eq("id", "pagina_nosotros")
-          .single();
-
-        if (nosotrosData?.contenido) {
-
-          // Cargar datos en los estados
-          const c = nosotrosData?.contenido || {};
-
-          setNosotrosHeroSub(c.hero?.subtitulo || "Desde San Gabriel Chilac, Puebla");
-          setNosotrosHeroTitulo(c.hero?.titulo || "Nuestra Historia");
-          setNosotrosHeroLema(c.hero?.lema || "Hecho a mano, dictado por el corazón");
-
-          setQuienesSomosTitulo(c.quienes_somos?.titulo || "¿Quiénes somos?");
-          setQuienesSomosDesc(c.quienes_somos?.descripcion || "");
-          setQuienesSomosImagen(c.quienes_somos?.imagen_url || "");
-
-          setLegadoTitulo(c.legado?.titulo || "Nuestro Legado");
-          setLegadoDesc(c.legado?.descripcion || "");
-          setLegadoImagen(c.legado?.imagen_url || "");
-
-          setNum1Val(c.legado?.num1_val || "2016");
-          setNum1Tag(c.legado?.num1_tag || "Fundación");
-          setNum2Val(c.legado?.num2_val || "+50");
-          setNum2Tag(c.legado?.num2_tag || "Artesanos");
-          setNum3Val(c.legado?.num3_val || "100%");
-          setNum3Tag(c.legado?.num3_tag || "A Mano");
-
-          setMisionDesc(c.mision?.descripcion || "");
-          setVisionDesc(c.vision?.descripcion || "");
-          setCierreCita(c.cierre?.cita || "");
-        }
-
-        // 🟢 AGREGA ESTAS LÍNEAS JUSTO AQUÍ AL FINAL DEL TRY:
-        setTimeout(() => {
-          setDatosOrigInicio(obtenerSnapshotInicio());
-          setDatosOrigNosotros(obtenerSnapshotNosotros());
-          setHayCambiosInicio(false);
-          setHayCambiosNosotros(false);
-        }, 100);
-
-      } catch (err) {
-        console.error("Error al cargar configuraciones:", err);
-      } finally {
-        setCargandoDatos(false);
+        // Testimonios
+        setTestimonio1Nombre(c.testimonios?.[0]?.nombre || "");
+        setTestimonio1Comentario(c.testimonios?.[0]?.comentario || "");
+        setTestimonio2Nombre(c.testimonios?.[1]?.nombre || "");
+        setTestimonio2Comentario(c.testimonios?.[1]?.comentario || "");
+        setTestimonio3Nombre(c.testimonios?.[2]?.nombre || "");
+        setTestimonio3Comentario(c.testimonios?.[2]?.comentario || "");
       }
-    };
 
-    cargarTodoElContenido();
-  }, []);
+      // Cargar Nosotros
+      const { data: nosotrosData } = await supabase
+        .from("configuracion_web")
+        .select("contenido")
+        .eq("id", "pagina_nosotros")
+        .single();
 
+      if (nosotrosData?.contenido) {
+        const c = nosotrosData.contenido;
 
-  // // Detector automático de cambios
-  // useEffect(() => {
-  //   // Si aún no hemos tomado la foto inicial de Supabase, no comparamos
-  //   if (!datosOriginales) return;
+        setNosotrosHeroSub(c.hero?.subtitulo || "Desde San Gabriel Chilac, Puebla");
+        setNosotrosHeroTitulo(c.hero?.titulo || "Nuestra Historia");
+        setNosotrosHeroLema(c.hero?.lema || "Hecho a mano, dictado por el corazón");
 
-  //   const snapshotActual = obtenerSnapshot();
-  //   setHayCambios(snapshotActual !== datosOriginales);
-  // }, [
-  //   // Pestaña Inicio
-  //   heroTitulo, heroSubtitulo, heroImagen,
-  //   videoTituloPrincipal, videoSubtitulo, // 👈 Se agregaron estas dos que faltaban
-  //   video1Url, video1Titulo, video2Url, video2Titulo, video3Url, video3Titulo,
-  //   creacionesTitulo, creacionesDesc, creacionesImagen, badge1Titulo, badge1Subtitulo, badge2Titulo, badge2Subtitulo,
-  //   testimonio1Nombre, testimonio1Comentario, testimonio2Nombre, testimonio2Comentario, testimonio3Nombre, testimonio3Comentario,
-  //   // Pestaña Nosotros
-  //   nosotrosHeroSub, nosotrosHeroTitulo, nosotrosHeroLema,
-  //   quienesSomosTitulo, quienesSomosDesc, quienesSomosImagen,
-  //   legadoTitulo, legadoDesc, legadoImagen, num1Val, num1Tag, num2Val, num2Tag, num3Val, num3Tag,
-  //   misionDesc, visionDesc, cierreCita,
-  //   // Estado de referencia
-  //   datosOriginales
-  // ]);
+        setQuienesSomosTitulo(c.quienes_somos?.titulo || "¿Quiénes somos?");
+        setQuienesSomosDesc(c.quienes_somos?.descripcion || "");
+        setQuienesSomosImagen(c.quienes_somos?.imagen_url || "");
 
+        setLegadoTitulo(c.legado?.titulo || "Nuestro Legado");
+        setLegadoDesc(c.legado?.descripcion || "");
+        setLegadoImagen(c.legado?.imagen_url || "");
+
+        setNum1Val(c.legado?.num1_val || "2016");
+        setNum1Tag(c.legado?.num1_tag || "Fundación");
+        setNum2Val(c.legado?.num2_val || "+50");
+        setNum2Tag(c.legado?.num2_tag || "Artesanos");
+        setNum3Val(c.legado?.num3_val || "100%");
+        setNum3Tag(c.legado?.num3_tag || "A Mano");
+
+        setMisionDesc(c.mision?.descripcion || "");
+        setVisionDesc(c.vision?.descripcion || "");
+        setCierreCita(c.cierre?.cita || "");
+      }
+
+      // ---------------------------------------------------------
+      // FOTO INICIAL EXACTA DE COMPARACIÓN (SNAPSHOTS)
+      // ---------------------------------------------------------
+      const initC = inicioData?.contenido;
+      setDatosOrigInicio(
+        JSON.stringify({
+          heroTitulo: initC?.hero?.titulo || "",
+          heroSubtitulo: initC?.hero?.subtitulo || "",
+          heroImagen: initC?.hero?.imagen_url || "",
+          videoTituloPrincipal: initC?.seccion_videos?.titulo || "",
+          videoSubtitulo: initC?.seccion_videos?.subtitulo || "",
+          video1Url: initC?.seccion_videos?.videos?.[0]?.url || "",
+          video1Titulo: initC?.seccion_videos?.videos?.[0]?.titulo || "Selección de Fibras",
+          video2Url: initC?.seccion_videos?.videos?.[1]?.url || "",
+          video2Titulo: initC?.seccion_videos?.videos?.[1]?.titulo || "El Arte de la Aguja",
+          video3Url: initC?.seccion_videos?.videos?.[2]?.url || "",
+          video3Titulo: initC?.seccion_videos?.videos?.[2]?.titulo || "Acabados de Alta Costura",
+          creacionesTitulo: initC?.creaciones_unicas?.titulo || "",
+          creacionesDesc: initC?.creaciones_unicas?.descripcion || "",
+          creacionesImagen: initC?.creaciones_unicas?.imagen_url || "",
+          badge1Titulo: initC?.creaciones_unicas?.badge1_titulo || "",
+          badge1Subtitulo: initC?.creaciones_unicas?.badge1_subtitulo || "",
+          badge2Titulo: initC?.creaciones_unicas?.badge2_titulo || "",
+          badge2Subtitulo: initC?.creaciones_unicas?.badge2_subtitulo || "",
+          testimonio1Nombre: initC?.testimonios?.[0]?.nombre || "",
+          testimonio1Comentario: initC?.testimonios?.[0]?.comentario || "",
+          testimonio2Nombre: initC?.testimonios?.[1]?.nombre || "",
+          testimonio2Comentario: initC?.testimonios?.[1]?.comentario || "",
+          testimonio3Nombre: initC?.testimonios?.[2]?.nombre || "",
+          testimonio3Comentario: initC?.testimonios?.[2]?.comentario || "",
+        })
+      );
+
+      const nosC = nosotrosData?.contenido;
+      setDatosOrigNosotros(
+        JSON.stringify({
+          nosotrosHeroSub: nosC?.hero?.subtitulo || "Desde San Gabriel Chilac, Puebla",
+          nosotrosHeroTitulo: nosC?.hero?.titulo || "Nuestra Historia",
+          nosotrosHeroLema: nosC?.hero?.lema || "Hecho a mano, dictado por el corazón",
+          quienesSomosTitulo: nosC?.quienes_somos?.titulo || "¿Quiénes somos?",
+          quienesSomosDesc: nosC?.quienes_somos?.descripcion || "",
+          quienesSomosImagen: nosC?.quienes_somos?.imagen_url || "",
+          legadoTitulo: nosC?.legado?.titulo || "Nuestro Legado",
+          legadoDesc: nosC?.legado?.descripcion || "",
+          legadoImagen: nosC?.legado?.imagen_url || "",
+          num1Val: nosC?.legado?.num1_val || "2016",
+          num1Tag: nosC?.legado?.num1_tag || "Fundación",
+          num2Val: nosC?.legado?.num2_val || "+50",
+          num2Tag: nosC?.legado?.num2_tag || "Artesanos",
+          num3Val: nosC?.legado?.num3_val || "100%",
+          num3Tag: nosC?.legado?.num3_tag || "A Mano",
+          misionDesc: nosC?.mision?.descripcion || "",
+          visionDesc: nosC?.vision?.descripcion || "",
+          cierreCita: nosC?.cierre?.cita || "",
+        })
+      );
+
+      setHayCambiosInicio(false);
+      setHayCambiosNosotros(false);
+
+    } catch (err) {
+      console.error("Error al cargar configuraciones:", err);
+    } finally {
+      setCargandoDatos(false);
+    }
+  };
+
+  cargarTodoElContenido();
+}, []);
 
   // Detección de cambios en INICIO
   useEffect(() => {
