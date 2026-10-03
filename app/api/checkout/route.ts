@@ -105,19 +105,19 @@ export async function POST(req: Request) {
       });
 
       // Agregar Costo de Envío a Stripe si aplica
-      if(costoEnvio && Number(costoEnvio) >0){
-        line_items.push({
-          price_data:{
-            currency: "mxn",
-            product_data: {
-              name: "Costo de Envío",
-              description: "Envío a domicílio",
-            },
-            unit_amount: Math.round(Number(costoEnvio) * 100) // En centavos
-          },
-          quantity: 1,
-        })
-      }
+      // if(costoEnvio && Number(costoEnvio) >0){
+      //   line_items.push({
+      //     price_data:{
+      //       currency: "mxn",
+      //       product_data: {
+      //         name: "Costo de Envío",
+      //         description: "Envío a domicílio",
+      //       },
+      //       unit_amount: Math.round(Number(costoEnvio) * 100) // En centavos
+      //     },
+      //     quantity: 1,
+      //   })
+      // }
 
       // Creamos la sesión en Stripe e inyectamos el orden_id en metadata
       const session = await stripe.checkout.sessions.create({
