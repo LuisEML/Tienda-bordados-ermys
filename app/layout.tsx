@@ -10,17 +10,25 @@ import ClientLayout from "./components/ClientLayout";
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.ropatipicaermys.com.mx/"), // Sustituir por el dominio final
   title: {
-    default: "Confecciones y Bordados ERMY’S | Moda Artesanal Hecha a Mano",
+    default: "Confecciones y Bordados ERMY’S | Ropa Típica y Moda Artesanal",
     template: "%s | Confecciones y Bordados ERMY’S",
   },
   description:
-    "Moda y ropa artesanal confeccionada a mano desde San Gabriel Chilac, Puebla. Diseños exclusivos, bordados tradicionales y piezas únicas de alta calidad.",
+    "Tienda de ropa típica y vestidos bordados a mano en San Gabriel Chilac, Puebla. Compra blusas artesanales, guayaberas y moda mexicana de alta calidad.",
   keywords: [
+    "ropa tipica mexicana",
+    "ropa artesanal puebla",
+    "ropa tipica poblana",
+    "vestidos bordados a mano",
+    "blusas tipicas bordadas",
+    "guayaberas artesanales",
     "bordados artesanales",
     "ropa mexicana artesanal",
-    "San Gabriel Chilac",
+    "San Gabriel Chilac bordados",
+    "Ropa tipica chilac",
     "vestidos bordados",
     "moda sustentable",
+    "Confecciones ERMY'S",
     "ERMY'S",
   ],
   authors: [{ name: "Confecciones y Bordados ERMY’S" }],
@@ -29,9 +37,9 @@ export const metadata: Metadata = {
     type: "website",
     locale: "es_MX",
     url: "https://www.ropatipicaermys.com.mx/",
-    title: "Confecciones y Bordados ERMY’S",
+    title: "Ropa Típica y Moda Artesanal Mexicana | ERMY’S",
     description:
-      "Guardianes de la tradición textil. Ropa artesanal con bordados hechos a mano y calidad premium.",
+      "Diseños exclusivos y ropa típica confeccionada a mano desde San Gabriel Chilac, Puebla. Envíos a todo México.",
     siteName: "Confecciones y Bordados ERMY’S",
     images: [
       {
@@ -44,8 +52,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Confecciones y Bordados ERMY’S",
-    description: "Moda artesanal mexicana hecha a mano.",
+    title: "Confecciones y Bordados ERMY’S | Ropa Típica Mexicana",
+    description: "Moda artesanal mexicana confeccionada a mano en Puebla.",
     images: ["/og-image.jpg"],
   },
   robots: {
