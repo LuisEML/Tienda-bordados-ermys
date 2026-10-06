@@ -507,57 +507,78 @@ const ejecutarEliminacion = async () => {
 
   const ejecutarEliminacionLote = async () => {
   if (seleccionados.length === 0) return;
-  
+
+  const BUCKET_NOMBRE = "fotos-productos";
+
   try {
-    // 1. Obtener los productos a eliminar
+    const archivosAEliminar: string[] = [];
+
+    // 1. Obtener las imágenes principales de todos los productos seleccionados
     const productosAEliminar = productos.filter((p) =>
       seleccionados.includes(String(p.id))
     );
 
-    // 2. Extraer las rutas relativas buscando la propiedad correcta (imagen o foto_url)
-    const rutasImagenes: string[] = productosAEliminar
-      .map((p: any) => {
-        // Intenta obtener la URL según el nombre de la columna en tu BD
-        const url = p.imagen_principal_url;
-        if (!url || typeof url !== "string") return null;
+    productosAEliminar.forEach((p) => {
+      if (p.imagen_principal_url) {
+        const pathPrincipal = obtenerStoragePath(p.imagen_principal_url, BUCKET_NOMBRE);
+        if (pathPrincipal) archivosAEliminar.push(pathPrincipal);
+      }
+    });
 
-        // Extrae la ruta relativa después del nombre de tu bucket "fotos-productos"
-        const partes = url.split("/fotos-productos/");
-        return partes.length > 1 ? partes[1] : null;
-      })
-      .filter((ruta): ruta is string => Boolean(ruta));
+    // 2. Consultar las variaciones en la BD asociadas a estos productos seleccionados
+    const { data: variaciones, error: errorVariaciones } = await supabase
+      .from("variaciones")
+      .select("imagenes")
+      .in("producto_id", seleccionados); // ⚠️ Asegúrate si la columna es 'producto_id' o similar
 
-    // 3. Eliminar los archivos del bucket 'fotos-productos'
-    if (rutasImagenes.length > 0) {
-      const { error: storageError } = await supabase.storage
-        .from("fotos-productos")
-        .remove(rutasImagenes);
+    if (!errorVariaciones && variaciones) {
+      variaciones.forEach((v) => {
+        if (Array.isArray(v.imagenes)) {
+          v.imagenes.forEach((imgUrl: string) => {
+            const pathVar = obtenerStoragePath(imgUrl, BUCKET_NOMBRE);
+            if (pathVar) archivosAEliminar.push(pathVar);
+          });
+        } else if (typeof v.imagenes === "string") {
+          const pathVar = obtenerStoragePath(v.imagenes, BUCKET_NOMBRE);
+          if (pathVar) archivosAEliminar.push(pathVar);
+        }
+      });
+    }
+
+    console.log("Rutas acumuladas para eliminar en lote:", archivosAEliminar);
+
+    // 3. Eliminar del Storage todos los archivos recolectados
+    if (archivosAEliminar.length > 0) {
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from(BUCKET_NOMBRE)
+        .remove(archivosAEliminar);
 
       if (storageError) {
-        console.error("Error al eliminar imágenes del bucket:", storageError.message);
+        console.error("❌ Error al eliminar imágenes del Storage:", storageError);
+      } else {
+        console.log("✅ Imágenes eliminadas con éxito en lote:", storageData);
       }
     }
 
-    // 4. Eliminar los registros de la base de datos
+    // 4. Eliminar los productos de la base de datos
     const { error: dbError } = await supabase
       .from("productos")
       .delete()
       .in("id", seleccionados);
 
     if (dbError) {
-      return toast.error("No se pudieron eliminar los productos seleccionados");
+      toast.error("No se pudieron eliminar los productos seleccionados");
+    } else {
+      const cantidadEliminada = seleccionados.length;
+      setProductos((prev) => prev.filter((p) => !seleccionados.includes(String(p.id))));
+      setSeleccionados([]);
+      setModalEliminarLote(false);
+      mostrarAviso(`${cantidadEliminada} producto(s) eliminado(s) correctamente`);
     }
 
-    // 5. Actualizar interfaz
-    const cantidadEliminada = seleccionados.length;
-    setProductos((prev) => prev.filter((p) => !seleccionados.includes(String(p.id))));
-    setSeleccionados([]);
-    setModalEliminarLote(false);
-    mostrarAviso(`${cantidadEliminada} producto(s) eliminado(s) correctamente`);
-
   } catch (err) {
-    console.error(err);
-    toast.error("Ocurrió un error inesperado al eliminar");
+    console.error("Error en la eliminación en lote:", err);
+    toast.error("Ocurrió un error inesperado al eliminar los productos");
   }
 };
 
