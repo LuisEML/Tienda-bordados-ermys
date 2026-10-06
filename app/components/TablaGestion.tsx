@@ -509,25 +509,28 @@ const ejecutarEliminacion = async () => {
   if (seleccionados.length === 0) return;
   
   try {
-    // 1. Obtener los productos que se van a eliminar para extraer las rutas de sus imágenes
+    // 1. Obtener los productos a eliminar
     const productosAEliminar = productos.filter((p) =>
       seleccionados.includes(String(p.id))
     );
 
-    // 2. Extraer los nombres/rutas relativas de los archivos dentro del bucket 'productos'
+    // 2. Extraer las rutas relativas buscando la propiedad correcta (imagen o foto_url)
     const rutasImagenes: string[] = productosAEliminar
-      .map((p) => {
-        if (!p.imagen_url) return null;
-        // Extrae la ruta relativa después de '/productos/'
-        const partes = p.imagen_url.split("/productos/");
+      .map((p: any) => {
+        // Intenta obtener la URL según el nombre de la columna en tu BD
+        const url = p.imagen_principal_url;
+        if (!url || typeof url !== "string") return null;
+
+        // Extrae la ruta relativa después del nombre de tu bucket "fotos-productos"
+        const partes = url.split("/fotos-productos/");
         return partes.length > 1 ? partes[1] : null;
       })
       .filter((ruta): ruta is string => Boolean(ruta));
 
-    // 3. Eliminar los archivos del bucket de Supabase Storage si existen
+    // 3. Eliminar los archivos del bucket 'fotos-productos'
     if (rutasImagenes.length > 0) {
       const { error: storageError } = await supabase.storage
-        .from("productos")
+        .from("fotos-productos")
         .remove(rutasImagenes);
 
       if (storageError) {
@@ -535,7 +538,7 @@ const ejecutarEliminacion = async () => {
       }
     }
 
-    // 4. Eliminar los registros de la tabla 'productos' en Supabase DB
+    // 4. Eliminar los registros de la base de datos
     const { error: dbError } = await supabase
       .from("productos")
       .delete()
@@ -545,12 +548,12 @@ const ejecutarEliminacion = async () => {
       return toast.error("No se pudieron eliminar los productos seleccionados");
     }
 
-    // 5. Actualizar el estado del cliente
+    // 5. Actualizar interfaz
     const cantidadEliminada = seleccionados.length;
     setProductos((prev) => prev.filter((p) => !seleccionados.includes(String(p.id))));
     setSeleccionados([]);
     setModalEliminarLote(false);
-    mostrarAviso(`${cantidadEliminada} producto(s) eliminado(s) correctamente de la BD y del bucket`);
+    mostrarAviso(`${cantidadEliminada} producto(s) eliminado(s) correctamente`);
 
   } catch (err) {
     console.error(err);
