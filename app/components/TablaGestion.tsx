@@ -506,20 +506,57 @@ const ejecutarEliminacion = async () => {
 };
 
   const ejecutarEliminacionLote = async () => {
-    if (seleccionados.length === 0) return;
-    try {
-      const { error } = await supabase.from("productos").delete().in("id", seleccionados);
-      if (error) return toast.error("No se pudieron eliminar los productos seleccionados");
-      
-      const cantidadEliminada = seleccionados.length;
-      setProductos((prev) => prev.filter((p) => !seleccionados.includes(String(p.id))));
-      setSeleccionados([]);
-      setModalEliminarLote(false);
-      mostrarAviso(`${cantidadEliminada} producto(s) eliminado(s)`);
-    } catch (err) {
-      toast.error("Ocurrió un error inesperado al eliminar");
+  if (seleccionados.length === 0) return;
+  
+  try {
+    // 1. Obtener los productos que se van a eliminar para extraer las rutas de sus imágenes
+    const productosAEliminar = productos.filter((p) =>
+      seleccionados.includes(String(p.id))
+    );
+
+    // 2. Extraer los nombres/rutas relativas de los archivos dentro del bucket 'productos'
+    const rutasImagenes: string[] = productosAEliminar
+      .map((p) => {
+        if (!p.imagen_url) return null;
+        // Extrae la ruta relativa después de '/productos/'
+        const partes = p.imagen_url.split("/productos/");
+        return partes.length > 1 ? partes[1] : null;
+      })
+      .filter((ruta): ruta is string => Boolean(ruta));
+
+    // 3. Eliminar los archivos del bucket de Supabase Storage si existen
+    if (rutasImagenes.length > 0) {
+      const { error: storageError } = await supabase.storage
+        .from("productos")
+        .remove(rutasImagenes);
+
+      if (storageError) {
+        console.error("Error al eliminar imágenes del bucket:", storageError.message);
+      }
     }
-  };
+
+    // 4. Eliminar los registros de la tabla 'productos' en Supabase DB
+    const { error: dbError } = await supabase
+      .from("productos")
+      .delete()
+      .in("id", seleccionados);
+
+    if (dbError) {
+      return toast.error("No se pudieron eliminar los productos seleccionados");
+    }
+
+    // 5. Actualizar el estado del cliente
+    const cantidadEliminada = seleccionados.length;
+    setProductos((prev) => prev.filter((p) => !seleccionados.includes(String(p.id))));
+    setSeleccionados([]);
+    setModalEliminarLote(false);
+    mostrarAviso(`${cantidadEliminada} producto(s) eliminado(s) correctamente de la BD y del bucket`);
+
+  } catch (err) {
+    console.error(err);
+    toast.error("Ocurrió un error inesperado al eliminar");
+  }
+};
 
   const toggleSeleccion = (id: string) => {
     setSeleccionados((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
