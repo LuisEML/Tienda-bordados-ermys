@@ -19,6 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .from("productos")
     .select("nombre, descripcion, imagen_principal_url, precio_menudeo")
     .eq("id", id)
+    .eq("disponible_en_linea", true) // 👈 Agregas esta validación
     .single();
 
   if (!producto) {
