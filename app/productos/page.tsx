@@ -86,7 +86,10 @@ export default function ProductosPage() {
     const { data, error } = await supabase
       .from('categorias')
       .select('id, nombre')
-      .order('nombre', { ascending: true });
+      .order('nombre', { ascending: true }
+      )
+      .eq('disponible_en_linea', true) // 👈 FILTRO OBLIGATORIO PARA LA TIENDA ONLINE
+      ;
 
     if (error) {
       console.error("Error cargando categorías:", error.message);
