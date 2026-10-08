@@ -45,6 +45,7 @@ export default function ProductosPage() {
             stock
           )
         `)
+        .eq('disponible_en_linea', true) // 👈 FILTRO OBLIGATORIO PARA LA TIENDA ONLINE
         .gt('variaciones.stock', 0); 
 
         if (busqueda) {
