@@ -46,7 +46,9 @@ export default function ProductosPage() {
           )
         `)
         .eq('disponible_en_linea', true) // 👈 FILTRO OBLIGATORIO PARA LA TIENDA ONLINE
-        .gt('variaciones.stock', 0); 
+        .gt('variaciones.stock', 0)
+        .order('created_at', { ascending: false }); // 👈 Muestra los más nuevos primero
+        ; 
 
         if (busqueda) {
           query = query.ilike('nombre', `%${busqueda}%`);
