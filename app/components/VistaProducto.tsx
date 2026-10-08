@@ -42,7 +42,18 @@ export default function VistaProducto({ producto }: { producto: any }) {
 
   const imagenesDelColor = obtenerImagenesDelColor();
 
-  const [imagenGrande, setImagenGrande] = useState(imagenesDelColor[0]);
+  // Inicializar estado de la imagen principal
+  const [imagenGrande, setImagenGrande] = useState(
+    imagenesDelColor[0] || producto.imagen_principal_url || "/placeholder.jpg"
+  );
+
+  // 1. SINCRONIZACIÓN DE SEGURIDAD: Actualizar imagen si cambia el producto o las imágenes cargadas
+  useEffect(() => {
+    const fotos = obtenerImagenesDelColor();
+    if (fotos.length > 0 && (!imagenGrande || !fotos.includes(imagenGrande))) {
+      setImagenGrande(fotos[0]);
+    }
+  }, [producto.id, producto.imagen_principal_url]);
 
   // MEMORIA DE COLOR: Cambiar la foto grande solo si el color activo cambia realmente
   const colorAnterior = useRef(colorActivo);
@@ -84,12 +95,20 @@ export default function VistaProducto({ producto }: { producto: any }) {
           })}
         </div>
 
-        {/* Imagen Principal Grande con Efecto Lupa */}
+       {/* Imagen Principal Grande con Efecto Lupa */}
         <div className="w-full flex-1">
-          <ImageZoom 
-            src={imagenGrande} 
-            alt={producto.nombre} 
-          />
+          {/* Usamos key={imagenGrande} para forzar al componente ImageZoom a reinicializarse cuando cambia la URL */}
+          {imagenGrande ? (
+            <ImageZoom 
+              key={imagenGrande}
+              src={imagenGrande} 
+              alt={producto.nombre} 
+            />
+          ) : (
+            <div className="w-full h-96 bg-stone-100 flex items-center justify-center text-stone-400">
+              Sin imagen
+            </div>
+          )}
         </div>
       </div>
 
