@@ -25,7 +25,6 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { generarEnlaceWhatsApp } from "@/lib/whatsapp";
 
-
 // ==========================================
 // 1. DEFINICIÓN DE TIPOS E INTERFACES
 // ==========================================
@@ -39,7 +38,7 @@ interface Variacion {
   talla: string;
   color_hex: string;
   stock: number;
-  color_nombre: string
+  color_nombre: string;
   sku?: string;
 }
 
@@ -93,7 +92,7 @@ export default function TablaGestionProductos({
   const [pestanaActiva, setPestanaActiva] = useState<"productos" | "suscriptores" | "pedidos">("productos");
   const [notificacion, setNotificacion] = useState({ mostrar: false, mensaje: "" });
 
-  // 1. Estado para la pestaña seleccionada
+  // 1. Estado para la pestaña seleccionada de inventario (Online / POS / Todos)
   const [canalFiltro, setCanalFiltro] = useState<'todos' | 'online' | 'pos'>('online');
 
   // ------------------------------------------
@@ -105,19 +104,14 @@ export default function TablaGestionProductos({
   const [tempData, setTempData] = useState(estadoInicialForm);
 
   // ------------------------------------------
-  // ESTADOS: SUSCRIPTORES
+  // ESTADOS: SUSCRIPTORES Y PEDIDOS
   // ------------------------------------------
   const [suscriptores, setSuscriptores] = useState<Suscriptor[]>([]);
   const [cargandoSuscriptores, setCargandoSuscriptores] = useState(false);
   const [busquedaSuscriptor, setBusquedaSuscriptor] = useState("");
 
-  // ------------------------------------------
-  // ESTADOS: pedidos 
-  // ------------------------------------------
   const [ordenes, setOrdenes] = useState<any[]>([]);
   const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
-
-  
 
   // ------------------------------------------
   // ESTADOS: FILTROS Y ORDENAMIENTO (PRODUCTOS)
@@ -125,7 +119,6 @@ export default function TablaGestionProductos({
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "bajo" | "agotado" | "disponible">("todos");
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>("todas");
-  // 1. CAMBIO AQUÍ: 'created_at_desc' es ahora la opción por defecto
   const [criterioOrden, setCriterioOrden] = useState<
     "created_at_desc" | "nombre_asc" | "nombre_desc" | "precio_asc" | "precio_desc" | "stock_asc" | "stock_desc"
   >("created_at_desc");
@@ -135,20 +128,15 @@ export default function TablaGestionProductos({
   // ESTADOS: PAGINACIÓN
   // ------------------------------------------
   const [productosPorPagina, setProductosPorPagina] = useState(8);
-
-  // Búsqueda y Paginación
   const [paginaActual, setPaginaActual] = useState(1);
 
-
-  // Búsqueda y Paginación EXCLUSIVAS para la pestaña de Pedidos
   const [busquedaOrdenes, setBusquedaOrdenes] = useState("");
   const [paginaActualOrdenes, setPaginaActualOrdenes] = useState(1);
   const elementosPorPaginaOrdenes = 10;
-  // Eliminación
   const [eliminandoId, setEliminandoId] = useState<string | number | null>(null);
 
   // ------------------------------------------
-  // ESTADOS: MODALES Y SUBIDAS DE ARCHIVOS
+  // ESTADOS: MODALES Y SUBIDAS
   // ------------------------------------------
   const [subiendo, setSubiendo] = useState<string | null>(null);
   const [eliminando, setEliminando] = useState(false);
@@ -156,22 +144,17 @@ export default function TablaGestionProductos({
   const [subiendoMiniatura, setSubiendoMiniatura] = useState<boolean>(false);
   const [cargandoGaleria, setCargandoGaleria] = useState<boolean>(false);
 
-
-  // Modales Simples
   const [modalEliminar, setModalEliminar] = useState(false);
   const [idParaEliminar, setIdParaEliminar] = useState<string | null>(null);
   const [modalEliminarLote, setModalEliminarLote] = useState(false);
-  const [idAEliminar, setIdAEliminar] = useState<string | null>(null); // Para suscriptores
-  const [ordenAEliminar, setOrdenAEliminar] = useState<any | null>(null); // pedidos
-  // Estado para controlar qué variación está pendiente de eliminación
+  const [idAEliminar, setIdAEliminar] = useState<string | null>(null);
+  const [ordenAEliminar, setOrdenAEliminar] = useState<any | null>(null);
   const [variacionAEliminar, setVariacionAEliminar] = useState<{
     id: string;
     productoId: string;
     detalle: string;
   } | null>(null);
 
-
-  // Modales Complejos
   const [modalGuia, setModalGuia] = useState<{ mostrar: boolean; categoriaId: string | null; nombreCategoria: string }>({
     mostrar: false,
     categoriaId: null,
@@ -192,33 +175,27 @@ export default function TablaGestionProductos({
   const [colorFiltro, setColorFiltro] = useState<string>("todos");
   const [miniaturas, setMiniaturas] = useState<{ id: string; imagen_url: string; color_hex?: string }[]>([]);
 
-
-  // Nuevo Estado
   const [varianteNueva, setVarianteNueva] = useState<{
-  productoId: string | null;
-  talla: string;
-  nombreColor: string;
-  stock: number;
-  colorHex: string;
-}>({
-  productoId: null,
-  talla: "",
-  nombreColor: "",
-  stock: 10,
-  colorHex: "#000000",
-});
-
+    productoId: string | null;
+    talla: string;
+    nombreColor: string;
+    stock: number;
+    colorHex: string;
+  }>({
+    productoId: null,
+    talla: "",
+    nombreColor: "",
+    stock: 10,
+    colorHex: "#000000",
+  });
 
   // ==========================================
   // 4. EFECTOS (CICLO DE VIDA)
   // ==========================================
-  
-  // Sincronizar datos externos de productos
   useEffect(() => {
     setProductos(datosExternos);
   }, [datosExternos]);
 
-  // Cargar categorías disponibles
   useEffect(() => {
     const cargarCategorias = async () => {
       const { data, error } = await supabase.from("categorias").select("id, nombre").order("nombre");
@@ -228,19 +205,16 @@ export default function TablaGestionProductos({
     cargarCategorias();
   }, []);
 
-  // Cargar suscriptores solo cuando se activa su pestaña
   useEffect(() => {
     if (pestanaActiva === "suscriptores" && suscriptores.length === 0) {
       cargarSuscriptores();
     }
   }, [pestanaActiva]);
 
-  // Reiniciar la paginación al cambiar filtros de productos
   useEffect(() => {
     setPaginaActual(1);
-  }, [busqueda, categoriaSeleccionada, filtroEstado, criterioOrden,canalFlitro]);
+  }, [busqueda, categoriaSeleccionada, filtroEstado, criterioOrden, canalFiltro]);
 
-  // función que cambia la pestaña
   useEffect(() => {
     if (pestanaActiva === "pedidos") {
       cargarOrdenes();
@@ -250,24 +224,23 @@ export default function TablaGestionProductos({
   // ==========================================
   // 5. LÓGICA DERIVADA (FILTROS Y PAGINACIÓN)
   // ==========================================
-  
-  // Filtro de Suscriptores
   const suscriptoresFiltrados = suscriptores.filter((s) =>
     s.email.toLowerCase().includes(busquedaSuscriptor.toLowerCase())
   );
 
-  // Filtro y Ordenamiento de Productos
+  // Filtro integrado con Canal (Online / POS / Todos) + Búsqueda + Estado
   const productosFiltrados = productos
     .filter((prod) => {
-
       // 1. Filtro por Canal de Venta
       if (canalFiltro === "online" && !prod.disponible_en_linea) return false;
       if (canalFiltro === "pos" && prod.disponible_en_linea) return false;
-      
+
+      // 2. Filtro por Búsqueda
       const coincideBusqueda =
         prod.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
         prod.variaciones?.some((v: Variacion) => v.sku?.toLowerCase().includes(busqueda.toLowerCase()));
 
+      // 3. Filtro por Categoría
       let coincideCategoria = false;
       if (categoriaSeleccionada === "todas") {
         coincideCategoria = true;
@@ -278,6 +251,7 @@ export default function TablaGestionProductos({
         coincideCategoria = String(prod.categoria_id) === String(categoriaSeleccionada);
       }
 
+      // 4. Filtro por Estado de Stock
       const tieneStockBajo = prod.variaciones?.some((v: Variacion) => Number(v.stock) >= 1 && Number(v.stock) <= 2);
       const stockTotal = prod.variaciones?.reduce((acc, v: Variacion) => acc + Number(v.stock || 0), 0) ?? 0;
       const estaAgotado = stockTotal === 0;
@@ -295,10 +269,10 @@ export default function TablaGestionProductos({
       const stockB = b.variaciones?.reduce((acc, v) => acc + Number(v.stock || 0), 0) ?? Number(b.stock || 0);
 
       switch (criterioOrden) {
-          case "created_at_desc": {
+        case "created_at_desc": {
           const fechaA = (a as any).created_at ? new Date((a as any).created_at).getTime() : 0;
           const fechaB = (b as any).created_at ? new Date((b as any).created_at).getTime() : 0;
-          return fechaB - fechaA; // Muestra los más nuevos primero
+          return fechaB - fechaA;
         }
         case "nombre_asc": return (a.nombre || "").localeCompare(b.nombre || "");
         case "nombre_desc": return (b.nombre || "").localeCompare(a.nombre || "");
@@ -342,8 +316,6 @@ export default function TablaGestionProductos({
   // ==========================================
   // 6. FUNCIONES / HANDLERS
   // ==========================================
-
-  // --- Utilidades ---
   const mostrarAviso = (msg: string) => {
     setNotificacion({ mostrar: true, mensaje: msg });
     setTimeout(() => setNotificacion({ mostrar: false, mensaje: "" }), 3000);
@@ -376,7 +348,6 @@ export default function TablaGestionProductos({
     }
   };
 
-  // --- Exportaciones ---
   const exportarCSV = () => {
     if (suscriptores.length === 0) return toast.error("No hay suscriptores para exportar");
     const headers = ["ID", "Email", "Fecha de Registro"];
@@ -408,7 +379,6 @@ export default function TablaGestionProductos({
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
-  // --- Handlers: Suscriptores ---
   const cargarSuscriptores = async () => {
     setCargandoSuscriptores(true);
     const { data, error } = await supabase.from("suscriptores").select("id, email, created_at").order("created_at", { ascending: false });
@@ -417,7 +387,6 @@ export default function TablaGestionProductos({
     setCargandoSuscriptores(false);
   };
 
-  // --- Handlers: Productos Básicos ---
   const iniciarEdicion = (p: Producto) => {
     setEditandoId(p.id);
     setTempData({ nombre: p.nombre, precio_menudeo: p.precio_menudeo.toString(), precio_mayoreo: p.precio_mayoreo.toString(), descripcion: p.descripcion || "", categoria_id: p.categoria_id || "" });
@@ -445,184 +414,129 @@ export default function TablaGestionProductos({
     }
   };
 
-  // Cambios a la función de eliminar un producto
- // 1. Función Helper Robusta para obtener el path relativo dentro del bucket
-function obtenerStoragePath(urlPublica: string, bucketNombre: string) {
-  if (!urlPublica || typeof urlPublica !== "string") return null;
+  function obtenerStoragePath(urlPublica: string, bucketNombre: string) {
+    if (!urlPublica || typeof urlPublica !== "string") return null;
+    const urlDecodificada = decodeURIComponent(urlPublica);
+    const patronPublico = `/object/public/${bucketNombre}/`;
+    const patronSimple = `/${bucketNombre}/`;
+    let rutaRelativa = "";
 
-  // Decodificamos %20 y caracteres especiales a texto normal
-  const urlDecodificada = decodeURIComponent(urlPublica);
-
-  const patronPublico = `/object/public/${bucketNombre}/`;
-  const patronSimple = `/${bucketNombre}/`;
-
-  let rutaRelativa = "";
-
-  if (urlDecodificada.includes(patronPublico)) {
-    rutaRelativa = urlDecodificada.split(patronPublico)[1];
-  } else if (urlDecodificada.includes(patronSimple)) {
-    rutaRelativa = urlDecodificada.split(patronSimple)[1];
-  } else {
-    // Si la URL no tiene la estructura previa, intenta obtener solo el nombre del archivo final
-    const partes = urlDecodificada.split("/");
-    rutaRelativa = partes[partes.length - 1];
-  }
-
-  return rutaRelativa || null;
-}
-
-const ejecutarEliminacion = async () => {
-  if (!idParaEliminar) return;
-
-  const BUCKET_NOMBRE = "fotos-productos"; // ⚠️ Ajusta al nombre exacto de tu Bucket en Supabase
-
-  try {
-    // 1. Obtener el producto local para la imagen principal
-    const producto = productos.find((p) => p.id === idParaEliminar);
-    const archivosAEliminar: string[] = [];
-
-    // A) Extraer la imagen principal del producto
-    const imagenPrincipal = producto?.imagen_principal_url;
-    if (imagenPrincipal) {
-      const pathPrincipal = obtenerStoragePath(imagenPrincipal, BUCKET_NOMBRE);
-      if (pathPrincipal) archivosAEliminar.push(pathPrincipal);
-    }
-
-    // B) Consultar las variaciones en la BD para traer sus imágenes
-    const { data: variaciones, error: errorVariaciones } = await supabase
-      .from("variaciones")
-      .select("imagenes")
-      .eq("producto_id", idParaEliminar); // ⚠️ Verifica si tu columna foránea es 'producto_id' o 'producto_id_principal'
-
-    if (!errorVariaciones && variaciones) {
-      variaciones.forEach((v) => {
-        // Si 'imagenes' es un arreglo de URLs
-        if (Array.isArray(v.imagenes)) {
-          v.imagenes.forEach((imgUrl: string) => {
-            const pathVar = obtenerStoragePath(imgUrl, BUCKET_NOMBRE);
-            if (pathVar) archivosAEliminar.push(pathVar);
-          });
-        } 
-        // Si 'imagenes' es un string de una sola URL
-        else if (typeof v.imagenes === "string") {
-          const pathVar = obtenerStoragePath(v.imagenes, BUCKET_NOMBRE);
-          if (pathVar) archivosAEliminar.push(pathVar);
-        }
-      });
-    }
-
-    // 🔍 Log de depuración para la consola (F12)
-    console.log("Rutas acumuladas para eliminar del Storage:", archivosAEliminar);
-
-    // C) Borrar todos los archivos recolectados del Storage
-    if (archivosAEliminar.length > 0) {
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from(BUCKET_NOMBRE)
-        .remove(archivosAEliminar);
-
-      if (storageError) {
-        console.error("❌ Error al eliminar imágenes del Storage:", storageError);
-      } else {
-        console.log("✅ Imágenes eliminadas con éxito de Supabase Storage:", storageData);
-      }
-    }
-
-    // 2. Eliminar el producto de la base de datos
-    // (Asegúrate de tener en Supabase la relación 'ON DELETE CASCADE' en la tabla variaciones, 
-    //  o borra manualmente las variaciones antes)
-    const { error } = await supabase.from("productos").delete().eq("id", idParaEliminar);
-
-    if (error) {
-      toast.error("No se pudo eliminar el producto");
+    if (urlDecodificada.includes(patronPublico)) {
+      rutaRelativa = urlDecodificada.split(patronPublico)[1];
+    } else if (urlDecodificada.includes(patronSimple)) {
+      rutaRelativa = urlDecodificada.split(patronSimple)[1];
     } else {
-      setProductos(productos.filter((p) => p.id !== idParaEliminar));
-      setModalEliminar(false);
-      setIdParaEliminar(null);
-      mostrarAviso("Producto eliminado");
+      const partes = urlDecodificada.split("/");
+      rutaRelativa = partes[partes.length - 1];
     }
-
-  } catch (err) {
-    console.error("Error inesperado en el proceso de eliminación:", err);
-    toast.error("Ocurrió un error al procesar la eliminación");
+    return rutaRelativa || null;
   }
-};
 
-  const ejecutarEliminacionLote = async () => {
-  if (seleccionados.length === 0) return;
+  const ejecutarEliminacion = async () => {
+    if (!idParaEliminar) return;
+    const BUCKET_NOMBRE = "fotos-productos";
 
-  const BUCKET_NOMBRE = "fotos-productos";
+    try {
+      const producto = productos.find((p) => p.id === idParaEliminar);
+      const archivosAEliminar: string[] = [];
 
-  try {
-    const archivosAEliminar: string[] = [];
-
-    // 1. Obtener las imágenes principales de todos los productos seleccionados
-    const productosAEliminar = productos.filter((p) =>
-      seleccionados.includes(String(p.id))
-    );
-
-    productosAEliminar.forEach((p) => {
-      if (p.imagen_principal_url) {
-        const pathPrincipal = obtenerStoragePath(p.imagen_principal_url, BUCKET_NOMBRE);
+      const imagenPrincipal = producto?.imagen_principal_url;
+      if (imagenPrincipal) {
+        const pathPrincipal = obtenerStoragePath(imagenPrincipal, BUCKET_NOMBRE);
         if (pathPrincipal) archivosAEliminar.push(pathPrincipal);
       }
-    });
 
-    // 2. Consultar las variaciones en la BD asociadas a estos productos seleccionados
-    const { data: variaciones, error: errorVariaciones } = await supabase
-      .from("variaciones")
-      .select("imagenes")
-      .in("producto_id", seleccionados); // ⚠️ Asegúrate si la columna es 'producto_id' o similar
+      const { data: variaciones, error: errorVariaciones } = await supabase
+        .from("variaciones")
+        .select("imagenes")
+        .eq("producto_id", idParaEliminar);
 
-    if (!errorVariaciones && variaciones) {
-      variaciones.forEach((v) => {
-        if (Array.isArray(v.imagenes)) {
-          v.imagenes.forEach((imgUrl: string) => {
-            const pathVar = obtenerStoragePath(imgUrl, BUCKET_NOMBRE);
+      if (!errorVariaciones && variaciones) {
+        variaciones.forEach((v) => {
+          if (Array.isArray(v.imagenes)) {
+            v.imagenes.forEach((imgUrl: string) => {
+              const pathVar = obtenerStoragePath(imgUrl, BUCKET_NOMBRE);
+              if (pathVar) archivosAEliminar.push(pathVar);
+            });
+          } else if (typeof v.imagenes === "string") {
+            const pathVar = obtenerStoragePath(v.imagenes, BUCKET_NOMBRE);
             if (pathVar) archivosAEliminar.push(pathVar);
-          });
-        } else if (typeof v.imagenes === "string") {
-          const pathVar = obtenerStoragePath(v.imagenes, BUCKET_NOMBRE);
-          if (pathVar) archivosAEliminar.push(pathVar);
+          }
+        });
+      }
+
+      if (archivosAEliminar.length > 0) {
+        await supabase.storage.from(BUCKET_NOMBRE).remove(archivosAEliminar);
+      }
+
+      const { error } = await supabase.from("productos").delete().eq("id", idParaEliminar);
+
+      if (error) {
+        toast.error("No se pudo eliminar el producto");
+      } else {
+        setProductos(productos.filter((p) => p.id !== idParaEliminar));
+        setModalEliminar(false);
+        setIdParaEliminar(null);
+        mostrarAviso("Producto eliminado");
+      }
+    } catch (err) {
+      toast.error("Ocurrió un error al procesar la eliminación");
+    }
+  };
+
+  const ejecutarEliminacionLote = async () => {
+    if (seleccionados.length === 0) return;
+    const BUCKET_NOMBRE = "fotos-productos";
+
+    try {
+      const archivosAEliminar: string[] = [];
+      const productosAEliminar = productos.filter((p) => seleccionados.includes(String(p.id)));
+
+      productosAEliminar.forEach((p) => {
+        if (p.imagen_principal_url) {
+          const pathPrincipal = obtenerStoragePath(p.imagen_principal_url, BUCKET_NOMBRE);
+          if (pathPrincipal) archivosAEliminar.push(pathPrincipal);
         }
       });
-    }
 
-    console.log("Rutas acumuladas para eliminar en lote:", archivosAEliminar);
+      const { data: variaciones, error: errorVariaciones } = await supabase
+        .from("variaciones")
+        .select("imagenes")
+        .in("producto_id", seleccionados);
 
-    // 3. Eliminar del Storage todos los archivos recolectados
-    if (archivosAEliminar.length > 0) {
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from(BUCKET_NOMBRE)
-        .remove(archivosAEliminar);
-
-      if (storageError) {
-        console.error("❌ Error al eliminar imágenes del Storage:", storageError);
-      } else {
-        console.log("✅ Imágenes eliminadas con éxito en lote:", storageData);
+      if (!errorVariaciones && variaciones) {
+        variaciones.forEach((v) => {
+          if (Array.isArray(v.imagenes)) {
+            v.imagenes.forEach((imgUrl: string) => {
+              const pathVar = obtenerStoragePath(imgUrl, BUCKET_NOMBRE);
+              if (pathVar) archivosAEliminar.push(pathVar);
+            });
+          } else if (typeof v.imagenes === "string") {
+            const pathVar = obtenerStoragePath(v.imagenes, BUCKET_NOMBRE);
+            if (pathVar) archivosAEliminar.push(pathVar);
+          }
+        });
       }
+
+      if (archivosAEliminar.length > 0) {
+        await supabase.storage.from(BUCKET_NOMBRE).remove(archivosAEliminar);
+      }
+
+      const { error: dbError } = await supabase.from("productos").delete().in("id", seleccionados);
+
+      if (dbError) {
+        toast.error("No se pudieron eliminar los productos seleccionados");
+      } else {
+        const cantidadEliminada = seleccionados.length;
+        setProductos((prev) => prev.filter((p) => !seleccionados.includes(String(p.id))));
+        setSeleccionados([]);
+        setModalEliminarLote(false);
+        mostrarAviso(`${cantidadEliminada} producto(s) eliminado(s) correctamente`);
+      }
+    } catch (err) {
+      toast.error("Ocurrió un error inesperado al eliminar los productos");
     }
-
-    // 4. Eliminar los productos de la base de datos
-    const { error: dbError } = await supabase
-      .from("productos")
-      .delete()
-      .in("id", seleccionados);
-
-    if (dbError) {
-      toast.error("No se pudieron eliminar los productos seleccionados");
-    } else {
-      const cantidadEliminada = seleccionados.length;
-      setProductos((prev) => prev.filter((p) => !seleccionados.includes(String(p.id))));
-      setSeleccionados([]);
-      setModalEliminarLote(false);
-      mostrarAviso(`${cantidadEliminada} producto(s) eliminado(s) correctamente`);
-    }
-
-  } catch (err) {
-    console.error("Error en la eliminación en lote:", err);
-    toast.error("Ocurrió un error inesperado al eliminar los productos");
-  }
-};
+  };
 
   const toggleSeleccion = (id: string) => {
     setSeleccionados((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
@@ -660,69 +574,51 @@ const ejecutarEliminacion = async () => {
     }
   };
 
-  // --- Handlers: Imágenes, Galería y borrar en el buket---
   const cambiarImagen = async (e: React.ChangeEvent<HTMLInputElement>, productoId: string) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  setSubiendo(productoId);
+    setSubiendo(productoId);
 
-  try {
-    const BUCKET_NOMBRE = "fotos-productos";
+    try {
+      const BUCKET_NOMBRE = "fotos-productos";
+      const productoActual = productos.find((p) => p.id === productoId);
+      const imagenAnteriorUrl = productoActual?.imagen_principal_url;
 
-    // 1. Buscamos la URL de la imagen previa en el estado local
-    const productoActual = productos.find((p) => p.id === productoId);
-    const imagenAnteriorUrl = productoActual?.imagen_principal_url;
+      const fileExt = file.name.split(".").pop();
+      const filePath = `productos/${productoId}-${Date.now()}.${fileExt}`;
 
-    // 2. Subimos la nueva imagen a Supabase Storage
-    const fileExt = file.name.split(".").pop();
-    const filePath = `productos/${productoId}-${Date.now()}.${fileExt}`;
+      const { error: upErr } = await supabase.storage.from(BUCKET_NOMBRE).upload(filePath, file);
+      if (upErr) throw upErr;
 
-    const { error: upErr } = await supabase.storage.from(BUCKET_NOMBRE).upload(filePath, file);
-    if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from(BUCKET_NOMBRE).getPublicUrl(filePath);
 
-    // 3. Obtenemos la nueva URL pública
-    const { data: { publicUrl } } = supabase.storage.from(BUCKET_NOMBRE).getPublicUrl(filePath);
+      const { error: updateErr } = await supabase
+        .from("productos")
+        .update({ imagen_principal_url: publicUrl })
+        .eq("id", productoId);
 
-    // 4. Actualizamos el registro en la BD
-    const { error: updateErr } = await supabase
-      .from("productos")
-      .update({ imagen_principal_url: publicUrl })
-      .eq("id", productoId);
+      if (updateErr) throw updateErr;
 
-    if (updateErr) throw updateErr;
-
-    // 5. Si la BD se actualizó con éxito y había una imagen anterior, la eliminamos de Storage
-    if (imagenAnteriorUrl && imagenAnteriorUrl !== publicUrl) {
-      const pathViejo = obtenerStoragePath(imagenAnteriorUrl, BUCKET_NOMBRE);
-
-      if (pathViejo) {
-        const { error: removeErr } = await supabase.storage
-          .from(BUCKET_NOMBRE)
-          .remove([pathViejo]);
-
-        if (removeErr) {
-          console.error("No se pudo eliminar la imagen anterior:", removeErr);
-        } else {
-          console.log("Imagen anterior eliminada de Storage:", pathViejo);
+      if (imagenAnteriorUrl && imagenAnteriorUrl !== publicUrl) {
+        const pathViejo = obtenerStoragePath(imagenAnteriorUrl, BUCKET_NOMBRE);
+        if (pathViejo) {
+          await supabase.storage.from(BUCKET_NOMBRE).remove([pathViejo]);
         }
       }
+
+      setProductos(
+        productos.map((p) =>
+          p.id === productoId ? { ...p, imagen_principal_url: publicUrl } : p
+        )
+      );
+
+      mostrarAviso("Imagen actualizada");
+    } catch (error) {
+      toast.error("Error al subir imagen");
+    } finally {
+      setSubiendo(null);
     }
-
-    // 6. Actualizamos el estado local
-    setProductos(
-      productos.map((p) =>
-        p.id === productoId ? { ...p, imagen_principal_url: publicUrl } : p
-      )
-    );
-
-    mostrarAviso("Imagen actualizada");
-  } catch (error) {
-    console.error("Error al cambiar la imagen:", error);
-    toast.error("Error al subir imagen");
-  } finally {
-    setSubiendo(null);
-  }
   };
 
   const abrirGaleria = async (producto: Producto) => {
@@ -759,49 +655,34 @@ const ejecutarEliminacion = async () => {
   };
 
   const eliminarMiniatura = async (idMiniatura: string) => {
-  try {
-    const BUCKET_NOMBRE = "fotos-productos";
+    try {
+      const BUCKET_NOMBRE = "fotos-productos";
+      const miniaturaAEliminar = miniaturas.find((img) => img.id === idMiniatura);
+      const imagenUrl = miniaturaAEliminar?.imagen_url;
 
-    // 1. Obtener la miniatura localmente para conocer su URL exacta
-    const miniaturaAEliminar = miniaturas.find((img) => img.id === idMiniatura);
-    const imagenUrl = miniaturaAEliminar?.imagen_url;
-
-    if (!imagenUrl) {
-      toast.error("No se encontró la URL de la miniatura");
-      return;
-    }
-
-    // 2. Eliminar el registro ÚNICAMENTE de la tabla 'imagenes_producto'
-    const { error: dbError } = await supabase
-      .from("imagenes_producto")
-      .delete()
-      .eq("id", idMiniatura);
-
-    if (dbError) throw dbError;
-
-    // 3. Borrar el archivo físico de Supabase Storage
-    const filePath = obtenerStoragePath(imagenUrl, BUCKET_NOMBRE);
-    if (filePath) {
-      const { error: storageError } = await supabase.storage
-        .from(BUCKET_NOMBRE)
-        .remove([filePath]);
-
-      if (storageError) {
-        console.error("Error al borrar el archivo físico de Storage:", storageError);
-      } else {
-        console.log("Archivo borrado de Storage:", filePath);
+      if (!imagenUrl) {
+        toast.error("No se encontró la URL de la miniatura");
+        return;
       }
+
+      const { error: dbError } = await supabase
+        .from("imagenes_producto")
+        .delete()
+        .eq("id", idMiniatura);
+
+      if (dbError) throw dbError;
+
+      const filePath = obtenerStoragePath(imagenUrl, BUCKET_NOMBRE);
+      if (filePath) {
+        await supabase.storage.from(BUCKET_NOMBRE).remove([filePath]);
+      }
+
+      setMiniaturas((prev) => prev.filter((img) => img.id !== idMiniatura));
+      mostrarAviso("Miniatura eliminada correctamente");
+    } catch (err: any) {
+      toast.error("Error al eliminar miniatura: " + err.message);
     }
-
-    // 4. Actualizar el estado local de la UI
-    setMiniaturas((prev) => prev.filter((img) => img.id !== idMiniatura));
-    mostrarAviso("Miniatura eliminada correctamente");
-
-  } catch (err: any) {
-    console.error("Error al eliminar miniatura:", err);
-    toast.error("Error al eliminar miniatura: " + err.message);
-  }
-};
+  };
 
   const cambiarColorMiniatura = async (idMiniatura: string, nuevoColorHex: string | null) => {
     try {
@@ -835,170 +716,147 @@ const ejecutarEliminacion = async () => {
     }
   };
 
-// Nueva función
-// Eliminar variación
-const eliminarVariacion = async (varianteId: string, productoId: string) => {
- 
+  const eliminarVariacion = async (varianteId: string, productoId: string) => {
+    try {
+      const { error } = await supabase.from("variaciones").delete().eq("id", varianteId);
+      if (error) throw error;
 
-  try {
-    const { error } = await supabase.from("variaciones").delete().eq("id", varianteId);
-    if (error) throw error;
+      setProductos((prev) =>
+        prev.map((prod) =>
+          prod.id === productoId
+            ? {
+                ...prod,
+                variaciones: prod.variaciones?.filter((v) => v.id !== varianteId),
+              }
+            : prod
+        )
+      );
 
-    setProductos((prev) =>
-      prev.map((prod) =>
-        prod.id === productoId
-          ? {
-              ...prod,
-              variaciones: prod.variaciones?.filter((v) => v.id !== varianteId),
-            }
-          : prod
-      )
-    );
+      mostrarAviso("Variación eliminada");
+    } catch (err: any) {
+      toast.error("Error al eliminar la variación: " + err.message);
+    }
+  };
 
-    mostrarAviso("Variación eliminada");
-  } catch (err: any) {
-    toast.error("Error al eliminar la variación: " + err.message);
-  }
-};
+  const agregarTallaAMismoColor = (varianteExistente: Variacion, productoId: string) => {
+    setVarianteNueva({
+      productoId: productoId,
+      talla: "", 
+      nombreColor: varianteExistente.color_nombre || "", 
+      colorHex: varianteExistente.color_hex || "#000000",
+      stock: 10,
+    });
+  };
 
-// Heredar color para agregar otra talla
-const agregarTallaAMismoColor = (varianteExistente: Variacion, productoId: string) => {
-  setVarianteNueva({
-    productoId: productoId,
-    talla: "", 
-    // Asegúrate de usar el mismo nombre que en tu base de datos (nombre_color o color_nombre)
-    nombreColor: varianteExistente.color_nombre || varianteExistente.color_nombre || "", 
-    colorHex: varianteExistente.color_hex || "#000000",
-    stock: 10,
-  });
-};
-
-// NUEVAS FUNCIONES
-// Actualizar el nombre del color en la variación
-// 1. Función para actualizar el Nombre del Color
-const actualizarNombreColor = async (variacionId: string, nuevoNombre: string, productoId: string) => {
-  const nombreLimpio = nuevoNombre.trim();
-  
-  // Guardar en Supabase
-  const { error } = await supabase
-    .from("variaciones")
-    .update({ color_nombre: nombreLimpio })
-    .eq("id", variacionId);
-
-  mostrarAviso("Nombre del Color de variación actualizado");  
-  if (error) {
-    toast.error("Error al actualizar nombre de color:" + error.message)
-    // console.error("Error al actualizar nombre de color:", error.message);
-    return;
-  }
-
-  // Actualizar la pantalla localmente sin recargar
-  setProductos((prevProductos: any[]) =>
-    prevProductos.map((prod) => {
-      if (prod.id !== productoId) return prod;
-      return {
-        ...prod,
-        variaciones: prod.variaciones?.map((v: any) =>
-          v.id === variacionId ? { ...v, color_nombre: nombreLimpio } : v
-        ),
-      };
-    })
-  );
-};
-
-// 2. Función para actualizar la Talla
-const actualizarTallaVariacion = async (variacionId: string, nuevaTalla: string, productoId: string) => {
-  const tallaLimpia = nuevaTalla.trim().toUpperCase();
-
-  // Guardar en Supabase
-  const { error } = await supabase
-    .from("variaciones")
-    .update({ talla: tallaLimpia })
-    .eq("id", variacionId);
-
-  mostrarAviso("Talla de variación actualizado");  
-  
-  if (error) {
-    toast.error("Error al actualizar talla" + error.message)
-    // console.error("Error al actualizar talla:", error.message);
-    return;
-  }
-
-  // Actualizar la pantalla localmente sin recargar
-  setProductos((prevProductos: any[]) =>
-    prevProductos.map((prod) => {
-      if (prod.id !== productoId) return prod;
-      return {
-        ...prod,
-        variaciones: prod.variaciones?.map((v: any) =>
-          v.id === variacionId ? { ...v, talla: tallaLimpia } : v
-        ),
-      };
-    })
-  );
-};
-
-// Guardar la nueva variación
-const guardarNuevaVariacionInline = async (productoId: string) => {
-  if (!varianteNueva.talla.trim()) {
-    toast.error("Por favor ingresa una talla");
-    return;
-  }
-
-  try {
-    const { data: nuevaVar, error } = await supabase
+  const actualizarNombreColor = async (variacionId: string, nuevoNombre: string, productoId: string) => {
+    const nombreLimpio = nuevoNombre.trim();
+    const { error } = await supabase
       .from("variaciones")
-      .insert([
-        {
-          producto_id: productoId,
-          talla: varianteNueva.talla.toUpperCase().trim(),
-          color_nombre: varianteNueva.nombreColor.trim() || null,
-          stock: varianteNueva.stock,
-          color_hex: varianteNueva.colorHex,
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    setProductos((prev) =>
-      prev.map((prod) =>
-        prod.id === productoId
-          ? { ...prod, variaciones: [...(prod.variaciones || []), nuevaVar] }
-          : prod
-      )
-    );
-
-    setVarianteNueva({ productoId: null, talla: "", nombreColor: "", stock: 10, colorHex: "#000000" });
-    mostrarAviso("Variación agregada");
-  } catch (err: any) {
-    toast.error("Error al crear variación: " + err.message);
-  }
-};
-
-// NUEVA FUNCIÓN PARA ORDENES O PEDIDOS 
-const cargarOrdenes = async () => {
-  setCargandoOrdenes(true);
-  try {
-    const { data, error } = await supabase
-      .from("ordenes")
-      .select("*")
-      .order("created_at", { ascending: false });
+      .update({ color_nombre: nombreLimpio })
+      .eq("id", variacionId);
 
     if (error) {
-      console.error("Error al cargar órdenes:", error);
-    } else {
-      setOrdenes(data || []);
+      toast.error("Error al actualizar nombre de color: " + error.message);
+      return;
     }
-  } catch (err) {
-    console.error("Error inesperado al obtener pedidos:", err);
-  } finally {
-    setCargandoOrdenes(false);
-  }
-};
 
+    mostrarAviso("Nombre del Color de variación actualizado");  
+    setProductos((prevProductos: any[]) =>
+      prevProductos.map((prod) => {
+        if (prod.id !== productoId) return prod;
+        return {
+          ...prod,
+          variaciones: prod.variaciones?.map((v: any) =>
+            v.id === variacionId ? { ...v, color_nombre: nombreLimpio } : v
+          ),
+        };
+      })
+    );
+  };
 
+  const actualizarTallaVariacion = async (variacionId: string, nuevaTalla: string, productoId: string) => {
+    const tallaLimpia = nuevaTalla.trim().toUpperCase();
+    const { error } = await supabase
+      .from("variaciones")
+      .update({ talla: tallaLimpia })
+      .eq("id", variacionId);
+
+    if (error) {
+      toast.error("Error al actualizar talla: " + error.message);
+      return;
+    }
+
+    mostrarAviso("Talla de variación actualizada");  
+    setProductos((prevProductos: any[]) =>
+      prevProductos.map((prod) => {
+        if (prod.id !== productoId) return prod;
+        return {
+          ...prod,
+          variaciones: prod.variaciones?.map((v: any) =>
+            v.id === variacionId ? { ...v, talla: tallaLimpia } : v
+          ),
+        };
+      })
+    );
+  };
+
+  const guardarNuevaVariacionInline = async (productoId: string) => {
+    if (!varianteNueva.talla.trim()) {
+      toast.error("Por favor ingresa una talla");
+      return;
+    }
+
+    try {
+      const { data: nuevaVar, error } = await supabase
+        .from("variaciones")
+        .insert([
+          {
+            producto_id: productoId,
+            talla: varianteNueva.talla.toUpperCase().trim(),
+            color_nombre: varianteNueva.nombreColor.trim() || null,
+            stock: varianteNueva.stock,
+            color_hex: varianteNueva.colorHex,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setProductos((prev) =>
+        prev.map((prod) =>
+          prod.id === productoId
+            ? { ...prod, variaciones: [...(prod.variaciones || []), nuevaVar] }
+            : prod
+        )
+      );
+
+      setVarianteNueva({ productoId: null, talla: "", nombreColor: "", stock: 10, colorHex: "#000000" });
+      mostrarAviso("Variación agregada");
+    } catch (err: any) {
+      toast.error("Error al crear variación: " + err.message);
+    }
+  };
+
+  const cargarOrdenes = async () => {
+    setCargandoOrdenes(true);
+    try {
+      const { data, error } = await supabase
+        .from("ordenes")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error al cargar órdenes:", error);
+      } else {
+        setOrdenes(data || []);
+      }
+    } catch (err) {
+      console.error("Error inesperado al obtener pedidos:", err);
+    } finally {
+      setCargandoOrdenes(false);
+    }
+  };
 
   const actualizarGuiaCategoria = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -1011,8 +869,6 @@ const cargarOrdenes = async () => {
 
     try {
       const BUCKET_NOMBRE = "fotos-productos";
-
-      // 1. Consultamos la base de datos directamente para obtener la URL anterior de forma 100% precisa
       const { data: categoriaBD } = await supabase
         .from("categorias")
         .select(campoColumna)
@@ -1020,18 +876,14 @@ const cargarOrdenes = async () => {
         .single();
 
       const urlGuiaAnterior = categoriaBD ? (categoriaBD as Record<string, any>)[campoColumna] : null;
-      console.log("1. URL anterior obtenida de la BD:", urlGuiaAnterior);
 
-      // 2. Subimos el nuevo archivo
       const fileName = `${Date.now()}-${campoColumna}-${file.name}`;
       const { error: upErr } = await supabase.storage.from(BUCKET_NOMBRE).upload(fileName, file);
       if (upErr) throw upErr;
 
-      // 3. Obtenemos la nueva URL pública
       const { data } = supabase.storage.from(BUCKET_NOMBRE).getPublicUrl(fileName);
       const publicUrl = data.publicUrl;
 
-      // 4. Actualizamos el registro en la BD
       const { error: dbErr } = await supabase
         .from("categorias")
         .update({ [campoColumna]: publicUrl })
@@ -1039,25 +891,13 @@ const cargarOrdenes = async () => {
 
       if (dbErr) throw dbErr;
 
-      // 5. Si existía una imagen anterior y es diferente a la nueva, la eliminamos de Storage
       if (urlGuiaAnterior && urlGuiaAnterior !== publicUrl) {
         const pathViejo = obtenerStoragePath(urlGuiaAnterior, BUCKET_NOMBRE);
-        console.log("2. Path relativo para borrar:", pathViejo);
-
         if (pathViejo) {
-          const { data: removeData, error: removeErr } = await supabase.storage
-            .from(BUCKET_NOMBRE)
-            .remove([pathViejo]);
-
-          if (removeErr) {
-            console.error("No se pudo eliminar la guía de tallas anterior:", removeErr);
-          } else {
-            console.log("3. Guía de tallas anterior eliminada de Storage:", removeData);
-          }
+          await supabase.storage.from(BUCKET_NOMBRE).remove([pathViejo]);
         }
       }
 
-      // 6. Actualizamos el estado local
       setCategoriasDisponibles((prev) =>
         prev.map((cat) =>
           cat.id === modalGuia.categoriaId ? { ...cat, [campoColumna]: publicUrl } : cat
@@ -1066,14 +906,12 @@ const cargarOrdenes = async () => {
 
       mostrarAviso("Guía de tallas actualizada correctamente");
     } catch (err: any) {
-      console.error("Error al actualizar la guía:", err);
       toast.error("Error al actualizar la guía: " + err.message);
     } finally {
       setSubiendoGuia(false);
     }
   };
 
-  // Control de estado de visualización para Empty State Global
   if (productos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-dashed border-stone-200">
@@ -1088,7 +926,6 @@ const cargarOrdenes = async () => {
     setModalEliminarLote(true);
   };
 
-  // Función ejecutada desde el Modal
   const confirmarEliminacion = async () => {
     if (!idAEliminar) return;
 
@@ -1110,68 +947,53 @@ const cargarOrdenes = async () => {
   };
 
   const confirmarEliminacionOrden = async () => {
-  if (!ordenAEliminar) return;
+    if (!ordenAEliminar) return;
 
-  const ordenId = ordenAEliminar.id;
-  setEliminandoId(ordenId);
+    const ordenId = ordenAEliminar.id;
+    setEliminandoId(ordenId);
 
-  try {
-    // 1. Borramos los detalles de la orden
-    const { error: errorDetalles } = await supabase
-      .from("detalles_orden")
-      .delete()
-      .eq("orden_id", ordenId);
+    try {
+      const { error: errorDetalles } = await supabase
+        .from("detalles_orden")
+        .delete()
+        .eq("orden_id", ordenId);
 
-    if (errorDetalles) {
-      console.error("Error al borrar los detalles:", errorDetalles);
-      alert("No se pudieron borrar los artículos asociados a la orden.");
-      return;
+      if (errorDetalles) {
+        alert("No se pudieron borrar los artículos asociados a la orden.");
+        return;
+      }
+
+      const { error: errorOrden } = await supabase
+        .from("ordenes")
+        .delete()
+        .eq("id", ordenId);
+
+      if (errorOrden) {
+        alert("Hubo un error al eliminar el registro principal.");
+        return;
+      }
+
+      setOrdenes((prev) => prev.filter((o) => o.id !== ordenId));
+      setOrdenAEliminar(null);
+    } catch (err) {
+      console.error("Error inesperado:", err);
+    } finally {
+      setEliminandoId(null);
     }
+  };
 
-    // 2. Borramos la orden maestra
-    const { error: errorOrden } = await supabase
-      .from("ordenes")
-      .delete()
-      .eq("id", ordenId);
+  const ordenesFiltradas = ordenes.filter((orden: any) => {
+    const termino = busquedaOrdenes.toLowerCase().trim();
+    const nombre = (orden.nombre_cliente || "").toLowerCase();
+    const telefono = (orden.telefono || "").toLowerCase();
+    const idStr = String(orden.id);
 
-    if (errorOrden) {
-      console.error("Error al borrar la orden:", errorOrden);
-      alert("Hubo un error al eliminar el registro principal.");
-      return;
-    }
+    return nombre.includes(termino) || telefono.includes(termino) || idStr.includes(termino);
+  });
 
-    // 3. Actualizamos la lista local y cerramos el modal
-    setOrdenes((prev) => prev.filter((o) => o.id !== ordenId));
-    setOrdenAEliminar(null);
-  } catch (err) {
-    console.error("Error inesperado:", err);
-  } finally {
-    setEliminandoId(null);
-  }
-};
-
-
-// 🔍 Filtro exclusivo para pedidos
-const ordenesFiltradas = ordenes.filter((orden: any) => {
-  const termino = busquedaOrdenes.toLowerCase().trim();
-  const nombre = (orden.nombre_cliente || "").toLowerCase();
-  const telefono = (orden.telefono || "").toLowerCase();
-  const idStr = String(orden.id);
-
-  return nombre.includes(termino) || telefono.includes(termino) || idStr.includes(termino);
-});
-
-// 📄 Cálculo de Paginación exclusivo para pedidos
-const totalPaginasOrdenes = Math.ceil(ordenesFiltradas.length / elementosPorPaginaOrdenes) || 1;
-const indiceInicioOrdenes = (paginaActualOrdenes - 1) * elementosPorPaginaOrdenes;
-const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInicioOrdenes + elementosPorPaginaOrdenes);
-
-
-
- 
-
-// 3. Paginación sobre la lista filtrada
-//const productosPaginados = productosFiltradosPorCanal.slice(primerIndice, ultimoIndice);
+  const totalPaginasOrdenes = Math.ceil(ordenesFiltradas.length / elementosPorPaginaOrdenes) || 1;
+  const indiceInicioOrdenes = (paginaActualOrdenes - 1) * elementosPorPaginaOrdenes;
+  const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInicioOrdenes + elementosPorPaginaOrdenes);
 
   // ==========================================
   // 7. RENDERIZADO (JSX)
@@ -1179,9 +1001,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
   return (
     <>
       <div className="space-y-6">
-        {/* ==========================================
-            BARRA DE PESTAÑAS (NAVEGACIÓN)
-            ========================================== */}
+        {/* BARRA DE PESTAÑAS PRINCIPAL */}
         <div className="flex border-b border-stone-200 gap-4 overflow-x-auto">
           <button
             onClick={() => setPestanaActiva("productos")}
@@ -1201,25 +1021,21 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
             <Users className="w-4 h-4" />
             <span>Boletín / Suscriptores</span>
           </button>
-          {/* 💡 NUEVA PESTAÑA: PEDIDOS */}
           <button
-              onClick={() => {
-                setPestanaActiva("pedidos");
-                cargarOrdenes();
-              }}
-              className={`pb-3 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
-                pestanaActiva === "pedidos" ? "border-stone-900 text-stone-900" : "border-transparent text-stone-400 hover:text-stone-600"
-              }`}
-            >
-              <ShoppingBag className="w-4 h-4" />
-              <span>Pedidos / Compras</span>
+            onClick={() => {
+              setPestanaActiva("pedidos");
+              cargarOrdenes();
+            }}
+            className={`pb-3 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+              pestanaActiva === "pedidos" ? "border-stone-900 text-stone-900" : "border-transparent text-stone-400 hover:text-stone-600"
+            }`}
+          >
+            <ShoppingBag className="w-4 h-4" />
+            <span>Pedidos / Compras</span>
           </button>
-          
         </div>
 
-        {/* ==========================================
-            MODALES GLOBALES Y NOTIFICACIONES
-            ========================================== */}
+        {/* NOTIFICACIÓN FLOTANTE */}
         {notificacion.mostrar && (
           <div className="fixed bottom-10 right-10 z-[100] animate-in fade-in slide-in-from-right-10 duration-300">
             <div className="bg-stone-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-stone-800">
@@ -1229,7 +1045,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
           </div>
         )}
 
-        {/* Modal: Guía de Tallas */}
+        {/* MODAL: GUÍA DE TALLAS */}
         {modalGuia.mostrar && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 border border-stone-100 max-h-[90vh] overflow-y-auto">
@@ -1246,7 +1062,8 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                   { label: "Hombre", campo: "guia_tallas_hombre_url" }, 
                   { label: "Mujer", campo: "guia_tallas_mujer_url" }, 
                   { label: "Niños", campo: "guia_tallas_ninos_url" }, 
-                  { label: "Niñas", campo: "guia_tallas_ninas_url" }].map((tipo) => {
+                  { label: "Niñas", campo: "guia_tallas_ninas_url" }
+                ].map((tipo) => {
                   const catActual = categoriasDisponibles.find((c) => c.id === modalGuia.categoriaId) as any;
                   const urlExistente = catActual?.[tipo.campo];
                   return (
@@ -1269,10 +1086,9 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
           </div>
         )}
 
-        {/* Modal: Galería de Miniaturas (Oculto para ahorrar espacio aquí, pero mantiene tu código intacto internamente) */}
+        {/* MODAL: GALERÍA DE MINIATURAS */}
         {modalGaleria.mostrar && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-             {/* Todo el contenido de modalGaleria original va aquí sin alteraciones funcionales */}
              <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 border border-stone-100 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center border-b pb-3">
                 <div>
@@ -1326,7 +1142,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
           </div>
         )}
 
-        {/* Modal: Confirmación Eliminar Individual */}
+        {/* MODAL: CONFIRMACIÓN ELIMINAR INDIVIDUAL */}
         {modalEliminar && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl space-y-6 text-center border border-stone-100">
@@ -1340,7 +1156,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
           </div>
         )}
 
-        {/* Modal: Confirmación Eliminar por Lote */}
+        {/* MODAL: CONFIRMACIÓN ELIMINAR POR LOTE */}
         {modalEliminarLote && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-100 transform transition-all">
@@ -1357,13 +1173,12 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
           </div>
         )}
 
-
         {/* ==========================================
-            VISTA 1: PESTAÑA PRODUCTOS
+            PESTAÑA 1: GESTIÓN DE PRODUCTOS
             ========================================== */}
         {pestanaActiva === "productos" && (
           <div>
-            {/* Cabecera y Exportar Excel */}
+            {/* CABECERA Y EXPORTAR */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
               <h2 className="text-xl font-bold text-gray-800">Listado de Inventario</h2>
               <button onClick={exportarAExcel} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow-sm transition-colors text-sm cursor-pointer">
@@ -1372,7 +1187,9 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
               </button>
             </div>
 
-            <button
+            {/* PESTAÑAS DE CANAL DE VENTA (Online / POS / Todos) */}
+            <div className="flex items-center gap-2 border-b border-stone-200 pb-3 mb-6">
+              <button
                 type="button"
                 onClick={() => { setCanalFiltro('online'); setPaginaActual(1); }}
                 className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
@@ -1409,7 +1226,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
               </button>
             </div>
 
-            {/* Bloque de Filtros, Búsqueda y Ordenamiento */}
+            {/* BÚSQUEDA Y ORDENAMIENTO */}
             <div className="flex flex-col md:flex-row gap-4 mb-6">
               <div className="relative flex-1">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><Search className="h-5 w-5 text-stone-400" /></div>
@@ -1418,6 +1235,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
               <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-2xl px-3 py-1 shadow-sm">
                 <ArrowUpDown className="w-4 h-4 text-stone-400 shrink-0" />
                 <select value={criterioOrden} onChange={(e) => setCriterioOrden(e.target.value as any)} className="w-full py-2 bg-transparent text-sm font-bold text-stone-700 outline-none cursor-pointer">
+                  <option value="created_at_desc">Más recientes primero</option>
                   <option value="nombre_asc">Nombre: A-Z</option>
                   <option value="nombre_desc">Nombre: Z-A</option>
                   <option value="precio_asc">Precio: Menor a Mayor</option>
@@ -1435,15 +1253,15 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
               </div>
             </div>
 
-            {/* Filtros rápidos de estado de stock */}
+            {/* FILTROS RÁPIDOS DE STOCK */}
             <div className="flex flex-wrap gap-2 mb-4">
-              <button onClick={() => setFiltroEstado('todos')} className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer ${filtroEstado === 'todos' ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Todos ({productos.length})</button>
+              <button onClick={() => setFiltroEstado('todos')} className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer ${filtroEstado === 'todos' ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Todos ({productosFiltrados.length})</button>
               <button onClick={() => setFiltroEstado('disponible')} className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer ${filtroEstado === 'disponible' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>🟢 En Stock</button>
               <button onClick={() => setFiltroEstado('bajo')} className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer ${filtroEstado === 'bajo' ? 'bg-amber-500 text-white shadow-sm' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>⚠️ Stock Bajo</button>
               <button onClick={() => setFiltroEstado('agotado')} className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer ${filtroEstado === 'agotado' ? 'bg-rose-600 text-white shadow-sm' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'}`}>🚫 Agotados</button>
             </div>
 
-            {/* Dashboard y Resumen Rápido */}
+            {/* DASHBOARD DE RESUMEN */}
             <div className="py-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-4 rounded-xl border border-gray-200 bg-white flex items-center justify-between">
                 <div><p className="text-xs font-medium text-gray-500 uppercase">Total Productos</p><p className="text-2xl font-bold text-gray-900 mt-1">{totalProductos}</p></div>
@@ -1461,18 +1279,16 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                 <div><p className="text-xs font-medium text-gray-500 uppercase">Agotados</p><p className="text-2xl font-bold text-rose-600 mt-1">{agotados}</p></div>
                 <div className="p-2.5 rounded-lg bg-rose-50 text-rose-600"><XCircle className="w-5 h-5" /></div>
               </div>
-              {/* Valor del Inventario - Ancho Completo Móvil */}
               <div className="col-span-1 sm:col-span-2 lg:col-span-4 bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Valor del Inventario</p>
                   <p className="text-2xl font-bold text-gray-900 mt-1">{valorFormateado}</p>
                   <span className="text-xs text-gray-400 mt-1 block">(Estimado a Menudeo)</span>
                 </div>
-                {/* <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600"><Download className="w-6 h-6" /></div> */}
               </div>
             </div>
 
-            {/* Menú Flotante / Acciones Masivas al seleccionar */}
+            {/* BARRA DE ACCIONES MASIVAS */}
             {seleccionados.length > 0 && (
               <div className="flex items-center justify-between p-3 mb-4 bg-indigo-50 border border-indigo-200 rounded-xl transition-all">
                 <div className="flex items-center gap-2">
@@ -1486,7 +1302,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
               </div>
             )}
 
-            {/* Categorías (Scroll horizontal para móvil) */}
+            {/* CATEGORÍAS PARA MÓVIL */}
             <div className="md:hidden mb-6">
               <div className="flex overflow-x-auto gap-2 scrollbar-hide px-1">
                 <button onClick={() => setCategoriaSeleccionada('todas')} className={`flex-none px-4 py-2 rounded-xl font-bold text-xs transition-all border ${categoriaSeleccionada === 'todas' ? "bg-stone-900 text-white border-stone-900 shadow-md" : "bg-white text-stone-500 border-stone-200"}`}>Todos</button>
@@ -1497,16 +1313,15 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
               </div>
             </div>
 
-            {/* RENDER TABLA Y TARJETAS (Listado de Productos) */}
+            {/* RENDER LISTADO DE PRODUCTOS */}
             {productosFiltrados.length > 0 ? (
               <>
-                {/* ---------------- VISTA MÓVIL (TARJETAS) ---------------- */}
+                {/* VISTA MÓVIL (TARJETAS) */}
                 <div className="grid grid-cols-1 gap-4 md:hidden">
                   {productosPaginados.map((prod) => {
                     const esEditando = editandoId === prod.id;
                     return (
                       <div key={prod.id} className="bg-white p-4 rounded-3xl border border-stone-200 shadow-sm space-y-4">
-                        {/* Encabezado: Imagen e Info Básica */}
                         <div className="flex gap-3">
                           <div className="relative shrink-0 w-20 h-20">
                             <img 
@@ -1528,7 +1343,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
 
                           <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                             <div>
-                              <div className="mb-1 flex items-center justify-between">
+                              <div className="mb-1 flex items-center justify-between gap-1">
                                 {esEditando ? (
                                   <select 
                                     value={tempData.categoria_id} 
@@ -1562,7 +1377,22 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                   className="w-full border-b border-stone-900 outline-none text-sm font-bold bg-transparent" 
                                 />
                               ) : (
-                                <h4 className="text-base font-bold text-stone-800 truncate leading-tight">{prod.nombre}</h4>
+                                <div className="space-y-1">
+                                  <h4 className="text-base font-bold text-stone-800 truncate leading-tight">{prod.nombre}</h4>
+                                  
+                                  {/* BADGE CANAL DE VENTA MÓVIL */}
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleDisponibleEnLinea(prod.id, !!prod.disponible_en_linea)}
+                                    className={`text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                                      prod.disponible_en_linea
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : "bg-amber-50 text-amber-700 border-amber-200"
+                                    }`}
+                                  >
+                                    {prod.disponible_en_linea ? "🌐 Tienda Web + POS" : "🏪 Solo POS"}
+                                  </button>
+                                </div>
                               )}
                             </div>
 
@@ -1597,14 +1427,12 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                           )}
                         </div>
 
-                        {/* Variaciones Móvil (Edición Completa: Color, Nombre, Talla, Stock y Eliminar) */}
+                        {/* Variaciones Móvil */}
                         <div className="space-y-1.5">
                           <span className="text-[9px] font-black text-stone-400 uppercase tracking-wider block">Variaciones y Stock</span>
                           <div className="grid grid-cols-1 gap-2">
                             {prod.variaciones?.map((v: Variacion, i: number) => (
                               <div key={i} className="flex items-center justify-between gap-2 bg-stone-50/80 border border-stone-200/80 p-2 rounded-2xl">
-                                
-                                {/* Selector de Color en Círculo */}
                                 <label className="relative cursor-pointer shrink-0 flex items-center justify-center" title="Cambiar color visual">
                                   <div className="w-5 h-5 rounded-full border border-stone-300 shadow-xs" style={{ backgroundColor: v.color_hex }} />
                                   <input 
@@ -1615,7 +1443,6 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                   />
                                 </label>
 
-                                {/* Input para Nombre del Color */}
                                 <input
                                   type="text"
                                   defaultValue={v.color_nombre || ""}
@@ -1624,7 +1451,6 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                   className="flex-1 min-w-0 text-[11px] font-medium text-stone-700 bg-white border border-stone-200 rounded-lg px-2 py-1 outline-none focus:border-stone-400"
                                 />
 
-                                {/* Input para Talla */}
                                 <input
                                   type="text"
                                   defaultValue={v.talla || ""}
@@ -1633,7 +1459,6 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                   className="w-11 text-[11px] font-bold text-stone-800 uppercase bg-white border border-stone-200 rounded-lg py-1 text-center outline-none focus:border-stone-400"
                                 />
 
-                                {/* Input para Stock */}
                                 <div className="flex items-center gap-1 bg-white border border-stone-200 rounded-lg px-1.5 py-1">
                                   <span className="text-[9px] text-stone-400 font-bold">Stk:</span>
                                   <input 
@@ -1645,7 +1470,6 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                   />
                                 </div>
 
-                                {/* Botón Eliminar Variación (Dispara el Modal) */}
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -1698,47 +1522,8 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                   })}
                 </div>
 
-                <div className="flex items-center gap-2 border-b border-stone-200 pb-3 mb-6">
-                    <button
-                      type="button"
-                      onClick={() => { setCanalFiltro('online'); setPaginaActual(1); }}
-                      className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                        canalFiltro === 'online'
-                          ? "bg-stone-800 text-white shadow-sm"
-                          : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-                      }`}
-                    >
-                      🌐 Tienda Online ({productos.filter(p => p.disponible_en_linea).length})
-                    </button>
-                  
-                    <button
-                      type="button"
-                      onClick={() => { setCanalFiltro('pos'); setPaginaActual(1); }}
-                      className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                        canalFiltro === 'pos'
-                          ? "bg-stone-800 text-white shadow-sm"
-                          : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-                      }`}
-                    >
-                      🏪 Solo POS / Física ({productos.filter(p => !p.disponible_en_linea).length})
-                    </button>
-                  
-                    <button
-                      type="button"
-                      onClick={() => { setCanalFiltro('todos'); setPaginaActual(1); }}
-                      className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                        canalFiltro === 'todos'
-                          ? "bg-stone-800 text-white shadow-sm"
-                          : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-                      }`}
-                    >
-                      📦 Todo el Inventario ({productos.length})
-                    </button>
-                 </div>
-                
-
-                {/* ---------------- VISTA ESCRITORIO (TABLA) ---------------- */}
-              <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+                {/* VISTA ESCRITORIO (TABLA) */}
+                <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
@@ -1770,9 +1555,29 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                 </div>
                               </td>
 
-                              {/* Nombre */}
+                              {/* Nombre y Badge de Canal (Online / POS) */}
                               <td className="p-4">
-                                {esEditando ? (<input value={tempData.nombre} onChange={(e) => setTempData({ ...tempData, nombre: e.target.value })} className="w-full text-sm font-bold border-b border-stone-800 outline-none bg-transparent" />) : (<h4 className="text-xs font-bold text-stone-700 truncate max-w-[180px]">{prod.nombre}</h4>)}
+                                {esEditando ? (
+                                  <input value={tempData.nombre} onChange={(e) => setTempData({ ...tempData, nombre: e.target.value })} className="w-full text-sm font-bold border-b border-stone-800 outline-none bg-transparent" />
+                                ) : (
+                                  <div className="flex flex-col gap-1">
+                                    <h4 className="text-xs font-bold text-stone-700 truncate max-w-[180px]">{prod.nombre}</h4>
+                                    
+                                    {/* BADGE INTERACTIVO DE CANAL DE VENTA */}
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleDisponibleEnLinea(prod.id, !!prod.disponible_en_linea)}
+                                      className={`w-fit text-[8px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full transition-all cursor-pointer ${
+                                        prod.disponible_en_linea
+                                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+                                          : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                                      }`}
+                                      title="Haz clic para cambiar visibilidad entre Tienda Online y POS"
+                                    >
+                                      {prod.disponible_en_linea ? "🌐 Tienda Web + POS" : "🏪 Solo POS / Física"}
+                                    </button>
+                                  </div>
+                                )}
                               </td>
 
                               {/* Precios */}
@@ -1796,10 +1601,10 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                               <td className="p-4 max-w-[200px]">
                                 {esEditando ? (<textarea value={tempData.descripcion} onChange={(e) => setTempData({ ...tempData, descripcion: e.target.value })} rows={2} className="w-full text-xs p-2 bg-stone-50 border border-stone-200 rounded-lg outline-none resize-none" />) : (<p className="text-xs text-stone-500 truncate italic">{prod.descripcion || "—"}</p>)}
                               </td>
-                                {/* desde aqui */}
+
+                              {/* Variaciones */}
                               <td className="p-4 min-w-[320px]">
                                 <div className="flex flex-wrap items-center gap-1.5">
-                                  {/* Variaciones existentes */}
                                   {prod.variaciones?.map((v: Variacion, i: number) => (
                                     <div
                                       key={v.id || i}
@@ -1807,7 +1612,6 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                         v.stock <= 2 ? "bg-red-50 border-red-200 text-red-700" : "bg-white border-stone-200 text-stone-700"
                                       }`}
                                     >
-                                      {/* Color Hex Picker */}
                                       <label className="relative cursor-pointer flex items-center" title={v.color_nombre || "Cambiar color"}>
                                         <div 
                                           className="w-3.5 h-3.5 rounded-full border shadow-sm transition-transform hover:scale-125" 
@@ -1821,9 +1625,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                         />
                                       </label>
 
-                                      {/* CONTENEDOR EDITABLE: Nombre de color y Talla */}
                                       <div className="flex flex-col leading-none gap-0.5">
-                                        {/* Input para Nombre del Color */}
                                         <input
                                           type="text"
                                           defaultValue={v.color_nombre || ""}
@@ -1833,7 +1635,6 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                           title="Editar nombre del color"
                                         />
 
-                                        {/* Input para Talla */}
                                         <input
                                           type="text"
                                           defaultValue={v.talla || ""}
@@ -1844,7 +1645,6 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                         />
                                       </div>
 
-                                      {/* Input Stock */}
                                       <input
                                         type="number"
                                         min="0"
@@ -1854,7 +1654,6 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                         title="Editar existencia"
                                       />
 
-                                      {/* BOTÓN PARA AGREGAR OTRA TALLA A ESTE MISMO COLOR */}
                                       <button
                                         type="button"
                                         onClick={() => agregarTallaAMismoColor(v, prod.id)}
@@ -1864,7 +1663,6 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                         +talla
                                       </button>
 
-                                      {/* Botón Eliminar Variación */}
                                       <button
                                         type="button"
                                         onClick={() =>
@@ -1882,7 +1680,6 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                     </div>
                                   ))}
 
-                                  {/* MINI FORMULARIO PARA AGREGAR NUEVA VARIACIÓN */}
                                   {varianteNueva.productoId === prod.id ? (
                                     <div className="flex items-center gap-1 p-1.5 bg-stone-900 border border-stone-700 rounded-xl animate-in fade-in zoom-in-95 duration-200 shadow-lg">
                                       <input
@@ -1947,118 +1744,118 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                                 </div>
                               </td>
 
-                        <td className="p-4 text-center">
-                          <button
-                            type="button"
-                            onClick={() => toggleDestacado(prod.id, !!prod.destacado)}
-                            className={`p-2 rounded-xl border transition-all ${
-                              prod.destacado
-                                ? "bg-amber-100 text-amber-700 border-amber-300 shadow-sm"
-                                : "bg-white text-stone-300 border-stone-200 hover:text-amber-500 hover:border-amber-200"
-                            }`}
-                            title={prod.destacado ? "Quitar de destacados" : "Marcar como destacado"}
-                          >
-                            ★
-                          </button>
-                        </td>
-
-                        <td className="p-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            {esEditando ? (
-                              <>
-                                <button onClick={() => guardarCambios(prod.id)} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg">
-                                  <Save className="w-4 h-4" />
-                                </button>
-                                <button onClick={cancelarEdicion} className="p-2 text-stone-400 hover:bg-stone-100 rounded-lg">
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button onClick={() => iniciarEdicion(prod)} className="p-2 text-stone-400 hover:text-stone-800 hover:bg-stone-100 rounded-lg">
-                                  <Edit3 className="w-4 h-4" />
-                                </button>
-                                <button onClick={() => { setIdParaEliminar(prod.id); setModalEliminar(true); }} className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                              <td className="p-4 text-center">
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const cat = categoriasDisponibles.find(c => c.id === prod.categoria_id);
-                                    setModalGuia({
-                                      mostrar: true,
-                                      categoriaId: prod.categoria_id,
-                                      nombreCategoria: cat?.nombre || "General"
-                                    });
-                                  }}
-                                  className="p-2 text-stone-400 hover:text-stone-800 hover:bg-stone-100 rounded-lg text-xs font-bold"
-                                  title="Ver/Editar Guía de Tallas"
+                                  onClick={() => toggleDestacado(prod.id, !!prod.destacado)}
+                                  className={`p-2 rounded-xl border transition-all ${
+                                    prod.destacado
+                                      ? "bg-amber-100 text-amber-700 border-amber-300 shadow-sm"
+                                      : "bg-white text-stone-300 border-stone-200 hover:text-amber-500 hover:border-amber-200"
+                                  }`}
+                                  title={prod.destacado ? "Quitar de destacados" : "Marcar como destacado"}
                                 >
-                                  📏 Guía
+                                  ★
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => abrirGaleria(prod)}
-                                  className="p-2 text-stone-400 hover:text-stone-800 hover:bg-stone-100 rounded-lg text-xs font-bold"
-                                  title="Gestionar Galería / Miniaturas"
-                                >
-                                  🖼️ Galería
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                              </td>
 
-          {/* CONTROLES DE PAGINACIÓN */}
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
-            <div className="flex items-center gap-2 text-xs font-bold text-stone-500">
-              <span>Mostrando</span>
-              <select
-                value={productosPorPagina}
-                onChange={(e) => {
-                  setProductosPorPagina(Number(e.target.value));
-                  setPaginaActual(1);
-                }}
-                className="bg-stone-50 border border-stone-200 rounded-lg p-1 text-xs font-bold outline-none cursor-pointer"
-              >
-                <option value={5}>5</option>
-                <option value={8}>8</option>
-                <option value={12}>12</option>
-                <option value={20}>20</option>
-              </select>
-              <span>de {productosFiltrados.length} piezas</span>
-            </div>
+                              <td className="p-4 text-right">
+                                <div className="flex justify-end gap-2">
+                                  {esEditando ? (
+                                    <>
+                                      <button onClick={() => guardarCambios(prod.id)} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg">
+                                        <Save className="w-4 h-4" />
+                                      </button>
+                                      <button onClick={cancelarEdicion} className="p-2 text-stone-400 hover:bg-stone-100 rounded-lg">
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button onClick={() => iniciarEdicion(prod)} className="p-2 text-stone-400 hover:text-stone-800 hover:bg-stone-100 rounded-lg">
+                                        <Edit3 className="w-4 h-4" />
+                                      </button>
+                                      <button onClick={() => { setIdParaEliminar(prod.id); setModalEliminar(true); }} className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const cat = categoriasDisponibles.find(c => c.id === prod.categoria_id);
+                                          setModalGuia({
+                                            mostrar: true,
+                                            categoriaId: prod.categoria_id,
+                                            nombreCategoria: cat?.nombre || "General"
+                                          });
+                                        }}
+                                        className="p-2 text-stone-400 hover:text-stone-800 hover:bg-stone-100 rounded-lg text-xs font-bold"
+                                        title="Ver/Editar Guía de Tallas"
+                                      >
+                                        📏 Guía
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => abrirGaleria(prod)}
+                                        className="p-2 text-stone-400 hover:text-stone-800 hover:bg-stone-100 rounded-lg text-xs font-bold"
+                                        title="Gestionar Galería / Miniaturas"
+                                      >
+                                        🖼️ Galería
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                disabled={paginaActual === 1}
-                onClick={() => setPaginaActual(prev => Math.max(1, prev - 1))}
-                className="p-2 border border-stone-200 rounded-xl hover:bg-stone-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-              >
-                <ChevronLeft className="w-4 h-4 text-stone-700" />
-              </button>
+                {/* CONTROLES DE PAGINACIÓN */}
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
+                  <div className="flex items-center gap-2 text-xs font-bold text-stone-500">
+                    <span>Mostrando</span>
+                    <select
+                      value={productosPorPagina}
+                      onChange={(e) => {
+                        setProductosPorPagina(Number(e.target.value));
+                        setPaginaActual(1);
+                      }}
+                      className="bg-stone-50 border border-stone-200 rounded-lg p-1 text-xs font-bold outline-none cursor-pointer"
+                    >
+                      <option value={5}>5</option>
+                      <option value={8}>8</option>
+                      <option value={12}>12</option>
+                      <option value={20}>20</option>
+                    </select>
+                    <span>de {productosFiltrados.length} piezas</span>
+                  </div>
 
-              <span className="text-xs font-bold text-stone-700">
-                Página {paginaActual} de {totalPaginas}
-              </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      disabled={paginaActual === 1}
+                      onClick={() => setPaginaActual(prev => Math.max(1, prev - 1))}
+                      className="p-2 border border-stone-200 rounded-xl hover:bg-stone-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-stone-700" />
+                    </button>
 
-              <button
-                disabled={paginaActual >= totalPaginas}
-                onClick={() => setPaginaActual(prev => Math.min(totalPaginas, prev + 1))}
-                className="p-2 border border-stone-200 rounded-xl hover:bg-stone-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-              >
-                <ChevronRight className="w-4 h-4 text-stone-700" />
-              </button>
-            </div>
-          </div>
-        </>
+                    <span className="text-xs font-bold text-stone-700">
+                      Página {paginaActual} de {totalPaginas}
+                    </span>
+
+                    <button
+                      disabled={paginaActual >= totalPaginas}
+                      onClick={() => setPaginaActual(prev => Math.min(totalPaginas, prev + 1))}
+                      className="p-2 border border-stone-200 rounded-xl hover:bg-stone-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+                    >
+                      <ChevronRight className="w-4 h-4 text-stone-700" />
+                    </button>
+                  </div>
+                </div>
+              </>
             ) : (
               /* VISTA SIN RESULTADOS */
               <div className="text-center py-20 bg-stone-50 rounded-3xl border border-dashed border-stone-200">
@@ -2067,368 +1864,351 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                 </div>
                 <h3 className="text-stone-800 font-bold text-lg">Búsqueda sin éxito</h3>
                 <p className="text-stone-500 text-sm italic max-w-[250px] mx-auto mt-1">
-                  No encontramos piezas que coincidan con la búsqueda o filtro seleccionado.
+                  No encontramos piezas que coincidan con la búsqueda o canal seleccionado.
                 </p>
                 <button
-                  onClick={() => { setBusqueda(""); setCategoriaSeleccionada("todas"); }}
-                  className="mt-6 text-xs font-bold text-stone-900 uppercase tracking-widest hover:underline"
+                  onClick={() => { setBusqueda(""); setCategoriaSeleccionada("todas"); setCanalFiltro("todos"); }}
+                  className="mt-6 text-xs font-bold text-stone-900 uppercase tracking-widest hover:underline cursor-pointer"
                 >
                   Ver todo el catálogo
                 </button>
               </div>
             )}
-          
-        </div>
-      )}
-
-      {/* VISTA 2: SUSCRIPTORES */}
-      {pestanaActiva === "suscriptores" && (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-              <input
-                type="text"
-                placeholder="Buscar suscriptor por correo..."
-                value={busquedaSuscriptor}
-                onChange={(e) => setBusquedaSuscriptor(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-xs outline-none focus:border-stone-900"
-              />
-            </div>
-
-            <button
-              onClick={exportarCSV}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer"
-            >
-              <Download className="w-4 h-4" />
-              <span>Descargar CSV (Excel)</span>
-            </button>
           </div>
+        )}
 
-          {cargandoSuscriptores ? (
-            <div className="py-12 text-center text-xs font-bold text-stone-400">
-              Cargando suscriptores...
-            </div>
-          ) : suscriptoresFiltrados.length > 0 ? (
-            <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[500px] text-left border-collapse">
-                  <thead>
-                    <tr className="bg-stone-50 border-b border-stone-200">
-                      <th className="p-3 text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                        Correo Electrónico
-                      </th>
-                      <th className="p-3 text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                        Fecha Registro
-                      </th>
-                      <th className="p-3 text-[10px] font-bold uppercase tracking-wider text-stone-400 text-right">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {suscriptoresFiltrados.map((s) => (
-                      <tr key={s.id} className="hover:bg-stone-50/50 transition-colors">
-                        <td className="p-3 text-xs font-bold text-stone-700 flex items-center gap-2 whitespace-nowrap">
-                          <Mail className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                          <span>{s.email}</span>
-                        </td>
-                        <td className="p-3 text-xs text-stone-500 whitespace-nowrap">
-                          {new Date(s.created_at).toLocaleDateString("es-MX", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </td>
-                        <td className="p-3 text-right whitespace-nowrap">
-                          {/* AQUI */}
-                          <button
-                            onClick={() => setIdAEliminar(s.id)}
-                            className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                            title="Eliminar correo"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        {/* PESTAÑA 2: SUSCRIPTORES */}
+        {pestanaActiva === "suscriptores" && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar suscriptor por correo..."
+                  value={busquedaSuscriptor}
+                  onChange={(e) => setBusquedaSuscriptor(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-xs outline-none focus:border-stone-900"
+                />
               </div>
-            </div>
-          ) : (
-            <div className="text-center py-12 bg-stone-50 rounded-2xl border border-dashed border-stone-200 text-xs text-stone-400 font-medium">
-              No hay suscriptores registrados.
-            </div>
-          )}
-        </div>
-      )}
 
-      {pestanaActiva === "pedidos" && (
-        <div className="mt-6 bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-xs">
-          
-          {/* ENCABEZADO Y BARRA DE BÚSQUEDA */}
-          <div className="p-6 border-b border-stone-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="font-serif text-lg font-bold text-stone-900">Historial de Pedidos</h2>
-              <p className="text-xs text-stone-500">Gestión de ventas, notificaciones y limpieza</p>
+              <button
+                onClick={exportarCSV}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Descargar CSV (Excel)</span>
+              </button>
             </div>
 
-            <div className="w-full md:w-72">
-            <input
-                type="text"
-                placeholder="Buscar por cliente, tel o ID..."
-                value={busquedaOrdenes}
-                onChange={(e) => {
-                  setBusquedaOrdenes(e.target.value);
-                  setPaginaActualOrdenes(1);
-                }}
-                className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-stone-900 transition-colors"
-            />
-            </div>
-          </div>
-
-          {/* TABLA DE PEDIDOS */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-stone-50 text-[10px] font-bold uppercase tracking-wider text-stone-500 border-b border-stone-100">
-                  <th className="py-3 px-4">Orden</th>
-                  <th className="py-3 px-4">Cliente</th>
-                  <th className="py-3 px-4">Ubicación / Dirección</th>
-                  <th className="py-3 px-4">Total</th>
-                  <th className="py-3 px-4">Pago</th>
-                  <th className="py-3 px-4 text-center">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100 text-xs">
-                {ordenesPaginadas.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-8 text-stone-400">
-                      {busqueda ? "No se encontraron coincidencias." : "No hay pedidos registrados aún."}
-                    </td>
-                  </tr>
-                ) : (
-                  ordenesPaginadas.map((orden: any) => {
-                    const urlWhatsApp = generarEnlaceWhatsApp(
-                      orden.telefono,
-                      orden.nombre_cliente,
-                      orden.id,
-                      "confirmacion"
-                    );
-
-                    return (
-                      <tr key={orden.id} className="hover:bg-stone-50/50 transition-colors">
-                        <td className="py-4 px-4 font-bold text-stone-900">
-                          #{orden.id}
-                        </td>
-                        <td className="py-4 px-4">
-                          <p className="font-bold text-stone-800">{orden.nombre_cliente}</p>
-                          <p className="text-[11px] text-stone-400">{orden.telefono}</p>
-                        </td>
-                        <td className="py-4 px-4 max-w-xs">
-                          <p className="line-clamp-1 text-stone-700">{orden.direccion}</p>
-                          <p className="text-[10px] text-stone-400">{orden.ciudad}, {orden.estado}</p>
-                        </td>
-                        <td className="py-4 px-4 font-bold text-stone-900">
-                          ${orden.total?.toLocaleString("es-MX")} MXN
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
-                            orden.estado_pago === "pagado"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-amber-100 text-amber-800"
-                          }`}>
-                            {orden.estado_pago}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center justify-center gap-2">
-                            {/* BOTÓN WHATSAPP */}
-                            <a
-                              href={urlWhatsApp}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl transition-colors shadow-xs"
-                            >
-                              <MessageSquare size={14} />
-                              WhatsApp
-                            </a>
-
-                            {/* BOTÓN ELIMINAR */}
-                           <button
-                              onClick={() => setOrdenAEliminar(orden)}
-                              title="Eliminar orden"
+            {cargandoSuscriptores ? (
+              <div className="py-12 text-center text-xs font-bold text-stone-400">
+                Cargando suscriptores...
+              </div>
+            ) : suscriptoresFiltrados.length > 0 ? (
+              <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[500px] text-left border-collapse">
+                    <thead>
+                      <tr className="bg-stone-50 border-b border-stone-200">
+                        <th className="p-3 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                          Correo Electrónico
+                        </th>
+                        <th className="p-3 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                          Fecha Registro
+                        </th>
+                        <th className="p-3 text-[10px] font-bold uppercase tracking-wider text-stone-400 text-right">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {suscriptoresFiltrados.map((s) => (
+                        <tr key={s.id} className="hover:bg-stone-50/50 transition-colors">
+                          <td className="p-3 text-xs font-bold text-stone-700 flex items-center gap-2 whitespace-nowrap">
+                            <Mail className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                            <span>{s.email}</span>
+                          </td>
+                          <td className="p-3 text-xs text-stone-500 whitespace-nowrap">
+                            {new Date(s.created_at).toLocaleDateString("es-MX", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </td>
+                          <td className="p-3 text-right whitespace-nowrap">
+                            <button
+                              onClick={() => setIdAEliminar(s.id)}
                               className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="Eliminar correo"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 className="w-4 h-4" />
                             </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-stone-50 rounded-2xl border border-dashed border-stone-200 text-xs text-stone-400 font-medium">
+                No hay suscriptores registrados.
+              </div>
+            )}
           </div>
+        )}
 
-          {/* PAGINACIÓN */}
-          {totalPaginasOrdenes > 1 && (
-            <div className="p-4 border-t border-stone-100 flex justify-between items-center text-xs text-stone-500">
-              <p>Página <strong>{paginaActualOrdenes}</strong> de <strong>{totalPaginasOrdenes}</strong></p>
-              <div className="flex gap-2">
+        {/* PESTAÑA 3: PEDIDOS */}
+        {pestanaActiva === "pedidos" && (
+          <div className="mt-6 bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-xs">
+            <div className="p-6 border-b border-stone-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="font-serif text-lg font-bold text-stone-900">Historial de Pedidos</h2>
+                <p className="text-xs text-stone-500">Gestión de ventas, notificaciones y limpieza</p>
+              </div>
+
+              <div className="w-full md:w-72">
+                <input
+                  type="text"
+                  placeholder="Buscar por cliente, tel o ID..."
+                  value={busquedaOrdenes}
+                  onChange={(e) => {
+                    setBusquedaOrdenes(e.target.value);
+                    setPaginaActualOrdenes(1);
+                  }}
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-stone-900 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-stone-50 text-[10px] font-bold uppercase tracking-wider text-stone-500 border-b border-stone-100">
+                    <th className="py-3 px-4">Orden</th>
+                    <th className="py-3 px-4">Cliente</th>
+                    <th className="py-3 px-4">Ubicación / Dirección</th>
+                    <th className="py-3 px-4">Total</th>
+                    <th className="py-3 px-4">Pago</th>
+                    <th className="py-3 px-4 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100 text-xs">
+                  {ordenesPaginadas.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-stone-400">
+                        {busquedaOrdenes ? "No se encontraron coincidencias." : "No hay pedidos registrados aún."}
+                      </td>
+                    </tr>
+                  ) : (
+                    ordenesPaginadas.map((orden: any) => {
+                      const urlWhatsApp = generarEnlaceWhatsApp(
+                        orden.telefono,
+                        orden.nombre_cliente,
+                        orden.id,
+                        "confirmacion"
+                      );
+
+                      return (
+                        <tr key={orden.id} className="hover:bg-stone-50/50 transition-colors">
+                          <td className="py-4 px-4 font-bold text-stone-900">
+                            #{orden.id}
+                          </td>
+                          <td className="py-4 px-4">
+                            <p className="font-bold text-stone-800">{orden.nombre_cliente}</p>
+                            <p className="text-[11px] text-stone-400">{orden.telefono}</p>
+                          </td>
+                          <td className="py-4 px-4 max-w-xs">
+                            <p className="line-clamp-1 text-stone-700">{orden.direccion}</p>
+                            <p className="text-[10px] text-stone-400">{orden.ciudad}, {orden.estado}</p>
+                          </td>
+                          <td className="py-4 px-4 font-bold text-stone-900">
+                            ${orden.total?.toLocaleString("es-MX")} MXN
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
+                              orden.estado_pago === "pagado"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-amber-100 text-amber-800"
+                            }`}>
+                              {orden.estado_pago}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="flex items-center justify-center gap-2">
+                              <a
+                                href={urlWhatsApp}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl transition-colors shadow-xs"
+                              >
+                                <MessageSquare size={14} />
+                                WhatsApp
+                              </a>
+
+                              <button
+                                onClick={() => setOrdenAEliminar(orden)}
+                                title="Eliminar orden"
+                                className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {totalPaginasOrdenes > 1 && (
+              <div className="p-4 border-t border-stone-100 flex justify-between items-center text-xs text-stone-500">
+                <p>Página <strong>{paginaActualOrdenes}</strong> de <strong>{totalPaginasOrdenes}</strong></p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPaginaActualOrdenes((prev) => Math.max(prev - 1, 1))}
+                    disabled={paginaActualOrdenes === 1}
+                    className="px-3 py-1.5 border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-50 font-medium transition-colors cursor-pointer"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    onClick={() => setPaginaActualOrdenes((prev) => Math.min(prev + 1, totalPaginasOrdenes))}
+                    disabled={paginaActualOrdenes === totalPaginasOrdenes}
+                    className="px-3 py-1.5 border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-50 font-medium transition-colors cursor-pointer"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* MODALES DE ELIMINACIÓN SUSCRIPTORES, VARIACIONES Y ORDENES */}
+        {idAEliminar && (
+          <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-stone-100 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+                <div className="flex items-center gap-2 text-red-600 font-bold text-sm">
+                  <AlertTriangle className="w-5 h-5 shrink-0" />
+                  <span>Confirmar eliminación</span>
+                </div>
                 <button
-                  onClick={() => setPaginaActualOrdenes((prev) => Math.max(prev - 1, 1))}
-                  disabled={paginaActualOrdenes === 1}
-                  className="px-3 py-1.5 border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-50 font-medium transition-colors cursor-pointer"
+                  onClick={() => setIdAEliminar(null)}
+                  className="text-stone-400 hover:text-stone-600 p-1 rounded-lg transition-colors"
                 >
-                  Anterior
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-xs text-stone-600 my-4 leading-relaxed">
+                ¿Estás seguro de que deseas eliminar este correo de la lista de suscriptores? Esta acción no se puede deshacer.
+              </p>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIdAEliminar(null)}
+                  disabled={eliminando}
+                  className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancelar
                 </button>
                 <button
-                  onClick={() => setPaginaActualOrdenes((prev) => Math.min(prev + 1, totalPaginasOrdenes))}
-                  disabled={paginaActualOrdenes === totalPaginasOrdenes}
-                  className="px-3 py-1.5 border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-50 font-medium transition-colors cursor-pointer"
+                  type="button"
+                  onClick={confirmarEliminacion}
+                  disabled={eliminando}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm cursor-pointer"
                 >
-                  Siguiente
+                  {eliminando ? "Eliminando..." : "Sí, eliminar"}
                 </button>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-        </div>
-      )}
-
-      {/* MODAL DE CONFIRMACIÓN */}
-      {idAEliminar && (
-        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-stone-100 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
-              <div className="flex items-center gap-2 text-red-600 font-bold text-sm">
-                <AlertTriangle className="w-5 h-5 shrink-0" />
-                <span>Confirmar eliminación</span>
+        {variacionAEliminar && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-stone-200 space-y-4">
+              <div className="flex items-center gap-3 text-red-600">
+                <div className="p-2 bg-red-100 rounded-full">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-stone-900">¿Eliminar variación?</h3>
               </div>
-              <button
-                onClick={() => setIdAEliminar(null)}
-                className="text-stone-400 hover:text-stone-600 p-1 rounded-lg transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <p className="text-xs text-stone-600 my-4 leading-relaxed">
-              ¿Estás seguro de que deseas eliminar este correo de la lista de suscriptores? Esta acción no se puede deshacer.
-            </p>
+              <p className="text-sm text-stone-600 leading-relaxed">
+                Estás a punto de borrar la variante <strong className="text-stone-900 font-bold">{variacionAEliminar.detalle}</strong>. Esta acción no se puede deshacer.
+              </p>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setIdAEliminar(null)}
-                disabled={eliminando}
-                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={confirmarEliminacion}
-                disabled={eliminando}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm cursor-pointer"
-              >
-                {eliminando ? "Eliminando..." : "Sí, eliminar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE CONFIRMACIÓN PARA ELIMINAR VARIACIÓN */}
-      {variacionAEliminar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-stone-200 space-y-4">
-            <div className="flex items-center gap-3 text-red-600">
-              <div className="p-2 bg-red-100 rounded-full">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setVariacionAEliminar(null)}
+                  className="px-4 py-2 text-xs font-bold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await eliminarVariacion(variacionAEliminar.id, variacionAEliminar.productoId);
+                    setVariacionAEliminar(null);
+                  }}
+                  className="px-4 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md transition-colors cursor-pointer"
+                >
+                  Sí, eliminar
+                </button>
               </div>
-              <h3 className="text-lg font-bold text-stone-900">¿Eliminar variación?</h3>
-            </div>
-
-            <p className="text-sm text-stone-600 leading-relaxed">
-              Estás a punto de borrar la variante <strong className="text-stone-900 font-bold">{variacionAEliminar.detalle}</strong>. Esta acción no se puede deshacer.
-            </p>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setVariacionAEliminar(null)}
-                className="px-4 py-2 text-xs font-bold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  await eliminarVariacion(variacionAEliminar.id, variacionAEliminar.productoId);
-                  setVariacionAEliminar(null); // Cierra el modal tras eliminar
-                }}
-                className="px-4 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md transition-colors cursor-pointer"
-              >
-                Sí, eliminar
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
+        {ordenAEliminar && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-stone-100 text-center transform transition-all scale-100">
+              <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle size={24} />
+              </div>
 
-      {/* MODAL PERSONALIZADO DE CONFIRMACIÓN DE ELIMINACIÓN */}
-      {ordenAEliminar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-stone-100 text-center transform transition-all scale-100">
-            
-            {/* Ícono de advertencia */}
-            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle size={24} />
+              <h3 className="text-base font-bold text-stone-900 mb-1">
+                ¿Eliminar orden #{ordenAEliminar.id}?
+              </h3>
+
+              <p className="text-xs text-stone-500 mb-6">
+                Esta acción eliminará de forma permanente el pedido de{" "}
+                <strong className="text-stone-700">{ordenAEliminar.nombre_cliente}</strong> y todos sus productos asociados. No se podrá recuperar.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setOrdenAEliminar(null)}
+                  disabled={eliminandoId === ordenAEliminar.id}
+                  className="flex-1 px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                
+                <button
+                  onClick={confirmarEliminacionOrden}
+                  disabled={eliminandoId === ordenAEliminar.id}
+                  className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {eliminandoId === ordenAEliminar.id ? (
+                    <span>Eliminando...</span>
+                  ) : (
+                    <span>Sí, eliminar</span>
+                  )}
+                </button>
+              </div>
             </div>
-
-            <h3 className="text-base font-bold text-stone-900 mb-1">
-              ¿iElimnar orden #{ordenAEliminar.id}?
-            </h3>
-
-            <p className="text-xs text-stone-500 mb-6">
-              Esta acción eliminará de forma permanente el pedido de{" "}
-              <strong className="text-stone-700">{ordenAEliminar.nombre_cliente}</strong> y todos sus productos asociados. No se podrá recuperar.
-            </p>
-
-            {/* Botones de Acción */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setOrdenAEliminar(null)}
-                disabled={eliminandoId === ordenAEliminar.id}
-                className="flex-1 px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              
-              <button
-                onClick={confirmarEliminacionOrden}
-                disabled={eliminandoId === ordenAEliminar.id}
-                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {eliminandoId === ordenAEliminar.id ? (
-                  <span>Eliminando...</span>
-                ) : (
-                  <span>Sí, eliminar</span>
-                )}
-              </button>
-            </div>
-
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
     </>
   );
 }
