@@ -52,6 +52,7 @@ interface Producto {
   categoria_id: string;
   imagen_principal_url?: string;
   destacado?: boolean;
+  disponible_en_linea?: boolean; // 👈 AGREGADO PARA INTERFAZ Y CANAL DE VENTA
   categorias?: { nombre: string };
   variaciones?: Variacion[];
   stock: number;
@@ -237,7 +238,7 @@ export default function TablaGestionProductos({
   // Reiniciar la paginación al cambiar filtros de productos
   useEffect(() => {
     setPaginaActual(1);
-  }, [busqueda, categoriaSeleccionada, filtroEstado, criterioOrden]);
+  }, [busqueda, categoriaSeleccionada, filtroEstado, criterioOrden,canalFlitro]);
 
   // función que cambia la pestaña
   useEffect(() => {
@@ -258,6 +259,11 @@ export default function TablaGestionProductos({
   // Filtro y Ordenamiento de Productos
   const productosFiltrados = productos
     .filter((prod) => {
+
+      // 1. Filtro por Canal de Venta
+      if (canalFiltro === "online" && !prod.disponible_en_linea) return false;
+      if (canalFiltro === "pos" && prod.disponible_en_linea) return false;
+      
       const coincideBusqueda =
         prod.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
         prod.variaciones?.some((v: Variacion) => v.sku?.toLowerCase().includes(busqueda.toLowerCase()));
@@ -341,6 +347,33 @@ export default function TablaGestionProductos({
   const mostrarAviso = (msg: string) => {
     setNotificacion({ mostrar: true, mensaje: msg });
     setTimeout(() => setNotificacion({ mostrar: false, mensaje: "" }), 3000);
+  };
+
+  const toggleDisponibleEnLinea = async (productoId: string, estadoActual: boolean) => {
+    const nuevoEstado = !estadoActual;
+    setProductos((prev) =>
+      prev.map((p) => (p.id === productoId ? { ...p, disponible_en_linea: nuevoEstado } : p))
+    );
+
+    try {
+      const { error } = await supabase
+        .from("productos")
+        .update({ disponible_en_linea: nuevoEstado })
+        .eq("id", productoId);
+
+      if (error) throw error;
+
+      mostrarAviso(
+        nuevoEstado
+          ? "Producto publicado en Tienda Online"
+          : "Producto cambiado a Solo POS / Tienda Física"
+      );
+    } catch (err: any) {
+      setProductos((prev) =>
+        prev.map((p) => (p.id === productoId ? { ...p, disponible_en_linea: estadoActual } : p))
+      );
+      toast.error("Error al actualizar visibilidad: " + err.message);
+    }
   };
 
   // --- Exportaciones ---
@@ -1135,12 +1168,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
 
 
 
-  // 2. Filtrar la lista de productos según la pestaña activa
-const productosFiltradosPorCanal = productos.filter((prod) => {
-  if (canalFiltro === 'online') return prod.disponible_en_linea === true;
-  if (canalFiltro === 'pos') return prod.disponible_en_linea === false;
-  return true; // 'todos'
-});
+ 
 
 // 3. Paginación sobre la lista filtrada
 //const productosPaginados = productosFiltradosPorCanal.slice(primerIndice, ultimoIndice);
@@ -1341,6 +1369,43 @@ const productosFiltradosPorCanal = productos.filter((prod) => {
               <button onClick={exportarAExcel} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow-sm transition-colors text-sm cursor-pointer">
                 <Download className="w-4 h-4 shrink-0" />
                 <span>Exportar a Excel</span>
+              </button>
+            </div>
+
+            <button
+                type="button"
+                onClick={() => { setCanalFiltro('online'); setPaginaActual(1); }}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  canalFiltro === 'online'
+                    ? "bg-stone-800 text-white shadow-sm"
+                    : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                }`}
+              >
+                🌐 Tienda Online ({productos.filter(p => p.disponible_en_linea).length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setCanalFiltro('pos'); setPaginaActual(1); }}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  canalFiltro === 'pos'
+                    ? "bg-stone-800 text-white shadow-sm"
+                    : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                }`}
+              >
+                🏪 Solo POS / Física ({productos.filter(p => !p.disponible_en_linea).length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setCanalFiltro('todos'); setPaginaActual(1); }}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  canalFiltro === 'todos'
+                    ? "bg-stone-800 text-white shadow-sm"
+                    : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                }`}
+              >
+                📦 Todo el Inventario ({productos.length})
               </button>
             </div>
 
