@@ -121,9 +121,10 @@ export default function TablaGestionProductos({
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<"todos" | "bajo" | "agotado" | "disponible">("todos");
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>("todas");
+  // 1. CAMBIO AQUÍ: 'created_at_desc' es ahora la opción por defecto
   const [criterioOrden, setCriterioOrden] = useState<
-    "nombre_asc" | "nombre_desc" | "precio_asc" | "precio_desc" | "stock_asc" | "stock_desc"
-  >("nombre_asc");
+    "created_at_desc" | "nombre_asc" | "nombre_desc" | "precio_asc" | "precio_desc" | "stock_asc" | "stock_desc"
+  >("created_at_desc");
   const [seleccionados, setSeleccionados] = useState<string[]>([]);
 
   // ------------------------------------------
@@ -285,6 +286,11 @@ export default function TablaGestionProductos({
       const stockB = b.variaciones?.reduce((acc, v) => acc + Number(v.stock || 0), 0) ?? Number(b.stock || 0);
 
       switch (criterioOrden) {
+          case "created_at_desc": {
+          const fechaA = (a as any).created_at ? new Date((a as any).created_at).getTime() : 0;
+          const fechaB = (b as any).created_at ? new Date((b as any).created_at).getTime() : 0;
+          return fechaB - fechaA; // Muestra los más nuevos primero
+        }
         case "nombre_asc": return (a.nombre || "").localeCompare(b.nombre || "");
         case "nombre_desc": return (b.nombre || "").localeCompare(a.nombre || "");
         case "precio_asc": return (a.precio_menudeo ?? 0) - (b.precio_menudeo ?? 0);
