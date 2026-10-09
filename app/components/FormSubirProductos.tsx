@@ -22,8 +22,8 @@ interface TallaStock {
 interface GrupoColor {
   color_nombre: string;
   color_hex: string;
-  imagenes: string[]; // URLs locales de preview
-  filesToUpload?: File[]; // Archivos reales a subir
+  imagenes: string[];
+  filesToUpload?: File[];
   tallas: TallaStock[];
 }
 
@@ -47,7 +47,6 @@ export function generarSKU(nombreProducto: string = "PROD", talla: string = ""):
   const aleatorio = Math.random().toString(36).substring(2, 6).toUpperCase();
   const timestamp = Date.now().toString().slice(-3);
 
-  // Formato ej: BLU-M-8X2K-102
   return `${prefijoProd}-${prefijoTalla}-${aleatorio}-${timestamp}`;
 }
 
@@ -67,7 +66,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
   const [nuevaCategoriaNombre, setNuevaCategoriaNombre] = useState('');
   const [creandoCategoria, setCreandoCategoria] = useState(false);
 
-  // --- ESTADOS PARA GUÍA DE TALLAS AL CREAR CATEGORÍA ---
+  // --- GUÍAS DE TALLAS ---
   const [guiaHombreFile, setGuiaHombreFile] = useState<File | null>(null);
   const [guiaMujerFile, setGuiaMujerFile] = useState<File | null>(null);
   const [guiaNinosFile, setGuiaNinosFile] = useState<File | null>(null);
@@ -75,8 +74,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
   const [guiaGeneralFile, setGuiaGeneralFile] = useState<File | null>(null);
   const [tipoGuiaCategoria, setTipoGuiaCategoria] = useState<'genero' | 'general'>('genero');
 
-
-  // Dentro de tu componente FormSubirProductos:
+  // --- PRECIOS BASE ---
   const [precioMenudeoBase, setPrecioMenudeoBase] = useState<number | "">("");
   const [precioMayoreoBase, setPrecioMayoreoBase] = useState<number | "">("");
   
@@ -118,7 +116,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
     checkDestacados();
   }, []);
 
-  // --- MANEJO DE GRUPOS DE COLOR ---
+  // --- HANDLERS GRUPOS DE COLOR Y TALLAS ---
   const agregarGrupoColor = () => {
     setGruposColor([
       ...gruposColor,
@@ -143,7 +141,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
     setGruposColor(nuevos);
   };
 
-  // --- MANEJO DE FOTOS POR COLOR ---
   const handleAgregarFotosColor = (colorIndex: number, e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const filesArray = Array.from(e.target.files);
@@ -165,7 +162,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
     setGruposColor(nuevos);
   };
 
-  // Al hacer clic en los botones de "Rápido (+ M, + G...)" o "Añadir otra medida/talla"
   const agregarTallaAColor = (colorIdx: number, tallaTexto: string) => {
     const nuevoSKU = generarSKU(nombreProducto, tallaTexto);
 
@@ -292,7 +288,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
     }
   };
 
-  // --- PORTADA PRINCIPAL ---
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -318,19 +313,22 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
     const formData = new FormData(form);
     const mainFile = formData.get("imagen_file") as File;
 
-    // En handleSubmit de FormSubirProductos.tsx:
-  const precioFinalMenudeo = calcularPrecioWebConComision(Number(precioMenudeoBase));
-  const precioFinalMayoreo = calcularPrecioWebConComision(Number(precioMayoreoBase));
-  
-  formData.set("precio_menudeo", precioFinalMenudeo.toString());
-  formData.set("precio_mayoreo", precioFinalMayoreo.toString());
+    // ✅ CÁLCULO SEGURO Y ASIGNACIÓN AL FORMDATA
+    const precioFinalMenudeo = precioMenudeoBase && Number(precioMenudeoBase) > 0 
+      ? calcularPrecioWebConComision(Number(precioMenudeoBase)) 
+      : 0;
+
+    const precioFinalMayoreo = precioMayoreoBase && Number(precioMayoreoBase) > 0 
+      ? calcularPrecioWebConComision(Number(precioMayoreoBase)) 
+      : 0;
+    
+    formData.set("precio_menudeo", precioFinalMenudeo.toString());
+    formData.set("precio_mayoreo", precioFinalMayoreo.toString());
     
     try {
       if (!mainFile || mainFile.size === 0) throw new Error("Debes seleccionar una imagen principal");
       if (!categoriaId) throw new Error("Debes seleccionar una categoría");
 
-      // 1. Subir Foto Principal
-      // ✅ AHORA (Saneado):
       const nombreLimpio = mainFile.name.replace(/[^a-zA-Z0-9.]/g, "_");
       const mainFileName = `${Date.now()}-main-${nombreLimpio}`;
       const { error: uploadError } = await supabase.storage
@@ -343,14 +341,12 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
         .from('fotos-productos')
         .getPublicUrl(mainFileName);
 
-      // 2. Procesar imágenes por color y aplanar variaciones
       const variacionesAInsertar = [];
       const imagenesPorColorParaBD: { url: string; color_hex: string }[] = [];
 
       for (const grupo of gruposColor) {
         if (grupo.filesToUpload && grupo.filesToUpload.length > 0) {
           for (const file of grupo.filesToUpload) {
-            // ✅ AHORA (Saneado):
             const nombreVarLimpio = file.name.replace(/[^a-zA-Z0-9.]/g, "_");
             const fileName = `${Date.now()}-var-${nombreVarLimpio}`;
             const { error: errVar } = await supabase.storage
@@ -371,7 +367,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
         }
 
         for (const t of grupo.tallas) {
-          // Si el SKU viene vacío por alguna razón, se le autoasigna uno aquí
           const skuFinal = t.sku || generarSKU(nombreProducto, t.talla);
 
           variacionesAInsertar.push({
@@ -385,7 +380,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
         }
       }
 
-      // 3. FormData extra para Server Action
       formData.append("destacado", isDestacado.toString());
       formData.append("categoria_id", categoriaId);
       formData.append("descripcion", descripcion);
@@ -396,7 +390,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
         variacionesAInsertar
       );
 
-      // 4. Insertar miniaturas en 'imagenes_producto'
       const productoId = productoCreado?.id || productoCreado;
 
       if (productoId && imagenesPorColorParaBD.length > 0) {
@@ -418,6 +411,8 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
       toast.success("¡Producto publicado correctamente!");
       form.reset();
       setNombreProducto('');
+      setPrecioMenudeoBase(''); // 👈 RESISTE ESTADOS DE PRECIOS
+      setPrecioMayoreoBase(''); // 👈 RESISTE ESTADOS DE PRECIOS
       setPreviewUrl(null);
       setCategoriaId('');
       setDescripcion('');
@@ -604,24 +599,22 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
               
               <div className="flex gap-2">
                 <input
-                  name="precio_menudeo"
                   type="number"
                   step="0.01"
                   min="0"
                   required
                   value={precioMenudeoBase}
-                  onChange={(e) => setPrecioMenudeoBase(parseFloat(e.target.value) || "")}
+                  onChange={(e) => setPrecioMenudeoBase(e.target.value === "" ? "" : parseFloat(e.target.value))}
                   className="w-1/2 p-3 border border-stone-200 rounded-lg text-sm"
                   placeholder="Menudeo ($)"
                 />
                 <input
-                  name="precio_mayoreo"
                   type="number"
                   step="0.01"
                   min="0"
                   required
                   value={precioMayoreoBase}
-                  onChange={(e) => setPrecioMayoreoBase(parseFloat(e.target.value) || "")}
+                  onChange={(e) => setPrecioMayoreoBase(e.target.value === "" ? "" : parseFloat(e.target.value))}
                   className="w-1/2 p-3 border border-stone-200 rounded-lg text-sm"
                   placeholder="Mayoreo ($)"
                 />
@@ -700,7 +693,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
           {gruposColor.map((grupo, colorIdx) => (
             <div key={colorIdx} className="bg-stone-50 p-4 sm:p-6 rounded-2xl border border-stone-200 space-y-5">
               
-              {/* CABECERA DEL COLOR */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-200/80 pb-4">
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                   <input 
@@ -731,7 +723,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
                 )}
               </div>
 
-              {/* GALERÍA DE FOTOS COMPARTIDA PARA ESTE COLOR */}
               <div>
                 <label className="text-[9px] font-bold text-stone-400 uppercase mb-2 block truncate">
                   Galería de Fotos para el color {grupo.color_nombre || "seleccionado"}
@@ -764,14 +755,12 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
                 </div>
               </div>
 
-              {/* TABLA / FILAS DE TALLAS PARA ESTE COLOR */}
               <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-stone-200/80 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider truncate">
                     Tallas y Existencias ({grupo.color_nombre || 'sin nombre'})
                   </label>
                   
-                  {/* Botones rápidos de agregar talla */}
                   <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
                     <span className="text-[9px] text-stone-400 mr-1 shrink-0 font-medium">Rápido:</span>
                     {TALLAS_RAPIDAS.map(t => (
@@ -791,7 +780,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
                   {grupo.tallas.map((tallaItem, tallaIdx) => (
                     <div key={tallaIdx} className="grid grid-cols-12 gap-2 items-end bg-stone-50/70 p-2.5 rounded-xl border border-stone-100">
                       
-                      {/* TALLA */}
                       <div className="col-span-4 sm:col-span-4">
                         <span className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Talla</span>
                         <input
@@ -803,7 +791,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
                         />
                       </div>
 
-                      {/* SKU AUTOGENERADO Y EDITABLE */}
                       <div className="col-span-4 sm:col-span-4">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-[8px] font-bold text-stone-400 uppercase block truncate">SKU</span>
@@ -832,7 +819,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
                         />
                       </div>
 
-                      {/* STOCK */}
                       <div className="col-span-3 sm:col-span-3">
                         <span className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Stock</span>
                         <input
@@ -844,7 +830,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
                         />
                       </div>
 
-                      {/* ELIMINAR TALLA */}
                       <div className="col-span-1 flex justify-center pb-1">
                         {grupo.tallas.length > 1 && (
                           <button
