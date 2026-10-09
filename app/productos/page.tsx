@@ -103,10 +103,18 @@ export default function ProductosPage() {
   // 💡 FILTROS DINÁMICOS PARALELOS OPTIMIZADOS
   const cargarFiltrosDinamicos = async () => {
     try {
-      let queryTallas = supabase.from('variaciones').select('talla, productos!inner(categoria_id)').gt('stock', 0);
+      let queryTallas = supabase
+        .from('variaciones')
+        .select('talla, productos!inner(categoria_id, disponible_en_linea)')
+        .gt('stock', 0)
+        .eq('productos.disponible_en_linea', true); // 👈 FILTRO OBLIGATORIO PARA LA TIENDA ONLINE;
       if (categoriaSeleccionada) queryTallas = queryTallas.eq('productos.categoria_id', categoriaSeleccionada);
 
-      let queryColores = supabase.from('variaciones').select('color_nombre, color_hex, productos!inner(categoria_id)').gt('stock', 0);
+      let queryColores = supabase
+        .from('variaciones')
+        .select('color_nombre, color_hex, productos!inner(categoria_id, disponible_en_linea)')
+        .gt('stock', 0)
+        .eq('productos.disponible_en_linea', true); // 👈 FILTRO OBLIGATORIO PARA LA TIENDA ONLINE;
       if (categoriaSeleccionada) queryColores = queryColores.eq('productos.categoria_id', categoriaSeleccionada);
       if (talla) queryColores = queryColores.eq('talla', talla);
 
