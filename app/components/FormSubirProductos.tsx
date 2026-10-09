@@ -31,12 +31,34 @@ interface FormSubirProductosProps {
   onClose?: () => void; 
 }
 
+export function generarSKU(nombreProducto: string = "PROD", talla: string = ""): string {
+  const prefijoProd = (nombreProducto || "ERM")
+    .trim()
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .substring(0, 3)
+    .toUpperCase() || "ERM";
+
+  const prefijoTalla = talla
+    .trim()
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toUpperCase() || "U";
+
+  const aleatorio = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const timestamp = Date.now().toString().slice(-3);
+
+  // Formato ej: BLU-M-8X2K-102
+  return `${prefijoProd}-${prefijoTalla}-${aleatorio}-${timestamp}`;
+}
+
 const TALLAS_RAPIDAS = ["CH", "M", "G", "XL", "Unitalla"];
 
 export default function FormSubirProductos({ categorias: categoriasIniciales = [], onClose }: FormSubirProductosProps) {
   const [loading, setLoading] = useState(false);
   const [isDestacado, setIsDestacado] = useState(false);
   const [cantDestacados, setCantDestacados] = useState(0);
+
+  // --- NOMBRE DEL PRODUCTO ---
+  const [nombreProducto, setNombreProducto] = useState('');
 
   // --- CATEGORÍAS DINÁMICAS ---
   const [listaCategorias, setListaCategorias] = useState<Categoria[]>(categoriasIniciales);
@@ -49,10 +71,8 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
   const [guiaMujerFile, setGuiaMujerFile] = useState<File | null>(null);
   const [guiaNinosFile, setGuiaNinosFile] = useState<File | null>(null);
   const [guiaNinasFile, setGuiaNinasFile] = useState<File | null>(null);
-  // Nuevos estados
   const [guiaGeneralFile, setGuiaGeneralFile] = useState<File | null>(null);
   const [tipoGuiaCategoria, setTipoGuiaCategoria] = useState<'genero' | 'general'>('genero');
-  
 
   // --- PORTADA Y DATOS GENERALES ---
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -66,7 +86,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
       color_hex: "#000000",
       imagenes: [],
       filesToUpload: [],
-      tallas: [{ talla: "Unitalla", stock: 1, sku: "" }]
+      tallas: [{ talla: "Unitalla", stock: 1, sku: generarSKU("PROD", "Unitalla") }]
     }
   ]);
 
@@ -97,7 +117,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
         color_hex: "#000000",
         imagenes: [],
         filesToUpload: [],
-        tallas: [{ talla: "Unitalla", stock: 1, sku: "" }]
+        tallas: [{ talla: "Unitalla", stock: 1, sku: generarSKU(nombreProducto, "Unitalla") }]
       }
     ]);
   };
@@ -135,11 +155,26 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
     setGruposColor(nuevos);
   };
 
-  // --- MANEJO DE TALLAS DENTRO DE UN COLOR ---
-  const agregarTallaAColor = (colorIndex: number, tallaNombre: string = "") => {
-    const nuevos = [...gruposColor];
-    nuevos[colorIndex].tallas.push({ talla: tallaNombre, stock: 1, sku: "" });
-    setGruposColor(nuevos);
+  // Al hacer clic en los botones de "Rápido (+ M, + G...)" o "Añadir otra medida/talla"
+  const agregarTallaAColor = (colorIdx: number, tallaTexto: string) => {
+    const nuevoSKU = generarSKU(nombreProducto, tallaTexto);
+
+    setGruposColor((prev) =>
+      prev.map((grupo, idx) => {
+        if (idx !== colorIdx) return grupo;
+        return {
+          ...grupo,
+          tallas: [
+            ...grupo.tallas,
+            {
+              talla: tallaTexto,
+              sku: nuevoSKU,
+              stock: 10,
+            },
+          ],
+        };
+      })
+    );
   };
 
   const eliminarTallaDeColor = (colorIndex: number, tallaIndex: number) => {
@@ -160,8 +195,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
 
     if (campo === "stock") {
       const parsed = parseInt(valor);
-      Math.max(0, parsed)
-      valorFinal = isNaN(parsed) ? 0 : parsed;
+      valorFinal = isNaN(parsed) ? 0 : Math.max(0, parsed);
     }
 
     nuevos[colorIndex].tallas[tallaIndex] = {
@@ -233,7 +267,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
       setListaCategorias(prev => [...prev, data]);
       setCategoriaId(data.id);
       
-      // Limpiar campos
       setNuevaCategoriaNombre('');
       setGuiaHombreFile(null);
       setGuiaMujerFile(null);
@@ -267,7 +300,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
     if (fileInput) fileInput.value = "";
   };
 
-  // --- SUBMIT FINAL (DESGLOSA Y SUBE A SUPABASE) ---
+  // --- SUBMIT FINAL ---
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -291,15 +324,11 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
         .from('fotos-productos')
         .getPublicUrl(mainFileName);
 
-      // 2. Procesar imágenes por color y aplanar variaciones + miniaturas
+      // 2. Procesar imágenes por color y aplanar variaciones
       const variacionesAInsertar = [];
-      // 💡 Arreglo temporal para guardar los datos de las imágenes secundarias por color
       const imagenesPorColorParaBD: { url: string; color_hex: string }[] = [];
 
       for (const grupo of gruposColor) {
-        const uploadedUrls: string[] = [];
-
-        // Subir fotos del color actual
         if (grupo.filesToUpload && grupo.filesToUpload.length > 0) {
           for (const file of grupo.filesToUpload) {
             const fileName = `${Date.now()}-var-${file.name}`;
@@ -312,9 +341,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
                 .from('fotos-productos')
                 .getPublicUrl(fileName);
               
-              // uploadedUrls.push(publicUrl);
-
-              // 💡 Acumulamos la imagen con su color_hex para guardarla en imagenes_producto
               imagenesPorColorParaBD.push({
                 url: publicUrl,
                 color_hex: grupo.color_hex
@@ -323,15 +349,17 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
           }
         }
 
-        // Crear una variación individual para cada TALLA de este COLOR
         for (const t of grupo.tallas) {
+          // Si el SKU viene vacío por alguna razón, se le autoasigna uno aquí
+          const skuFinal = t.sku || generarSKU(nombreProducto, t.talla);
+
           variacionesAInsertar.push({
             talla: t.talla || "Unitalla",
             color_nombre: grupo.color_nombre,
             color_hex: grupo.color_hex,
             stock: t.stock,
-            sku: t.sku,
-            imagenes: [] // Mantiene compatibilidad con el array legacy en variaciones
+            sku: skuFinal,
+            imagenes: []
           });
         }
       }
@@ -341,15 +369,13 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
       formData.append("categoria_id", categoriaId);
       formData.append("descripcion", descripcion);
 
-      // 💡 La Server Action debe retornar el producto creado (o al menos su ID)
       const productoCreado = await crearProductoCompletoAction(
         formData, 
         mainPublicUrl, 
         variacionesAInsertar
       );
 
-      // 4. 🚀 INSERTAR LAS MINIATURAS EN LA TABLA 'imagenes_producto'
-      // (Asegúrate de que 'productoCreado' retorne el { id: ... } o ajústalo si tu action devuelve sólo el id)
+      // 4. Insertar miniaturas en 'imagenes_producto'
       const productoId = productoCreado?.id || productoCreado;
 
       if (productoId && imagenesPorColorParaBD.length > 0) {
@@ -363,13 +389,14 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
           .from("imagenes_producto")
           .insert(registrosAInsertar);
 
-          if (errImgBD) {
-            console.error("Error al guardar en imagenes_producto:", errImgBD.message);
-          }
+        if (errImgBD) {
+          console.error("Error al guardar en imagenes_producto:", errImgBD.message);
         }
+      }
       
       toast.success("¡Producto publicado correctamente!");
       form.reset();
+      setNombreProducto('');
       setPreviewUrl(null);
       setCategoriaId('');
       setDescripcion('');
@@ -378,7 +405,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
         color_hex: "#000000",
         imagenes: [],
         filesToUpload: [],
-        tallas: [{ talla: "Unitalla", stock: 1, sku: "" }]
+        tallas: [{ talla: "Unitalla", stock: 1, sku: generarSKU("", "Unitalla") }]
       }]);
       setIsDestacado(false);
 
@@ -402,7 +429,14 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2">
             <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Nombre del Producto</label>
-            <input name="nombre" required className="w-full p-3 border border-stone-200 rounded-lg outline-none focus:border-stone-800 transition-all text-sm" placeholder="Ej. Huipil Bordado Tradicional" />
+            <input 
+              name="nombre" 
+              value={nombreProducto}
+              onChange={(e) => setNombreProducto(e.target.value)}
+              required 
+              className="w-full p-3 border border-stone-200 rounded-lg outline-none focus:border-stone-800 transition-all text-sm" 
+              placeholder="Ej. Huipil Bordado Tradicional" 
+            />
           </div>
 
           {/* SELECTOR Y CREACIÓN DE CATEGORÍAS */}
@@ -586,7 +620,6 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
 
       {/* SECCIÓN AGRUPADA POR COLORES Y SUS TALLAS */}
       <div className="border-t border-stone-100 pt-6 md:pt-8">
-        {/* ENCABEZADO DE SECCIÓN */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
           <div>
             <h3 className="font-serif text-lg md:text-xl italic text-stone-700">Variantes por Color y Tallas</h3>
@@ -676,7 +709,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
                     Tallas y Existencias ({grupo.color_nombre || 'sin nombre'})
                   </label>
                   
-                  {/* Botones rápidos de agregar talla (con Scroll Horizontal en Móvil) */}
+                  {/* Botones rápidos de agregar talla */}
                   <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
                     <span className="text-[9px] text-stone-400 mr-1 shrink-0 font-medium">Rápido:</span>
                     {TALLAS_RAPIDAS.map(t => (
@@ -696,7 +729,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
                   {grupo.tallas.map((tallaItem, tallaIdx) => (
                     <div key={tallaIdx} className="grid grid-cols-12 gap-2 items-end bg-stone-50/70 p-2.5 rounded-xl border border-stone-100">
                       
-                      {/* TALLA (Columna 4 en móvil, 4 en escritorio) */}
+                      {/* TALLA */}
                       <div className="col-span-4 sm:col-span-4">
                         <span className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Talla</span>
                         <input
@@ -708,19 +741,36 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
                         />
                       </div>
 
-                      {/* SKU (Columna 4 en móvil, 4 en escritorio) */}
+                      {/* SKU AUTOGENERADO Y EDITABLE */}
                       <div className="col-span-4 sm:col-span-4">
-                        <span className="text-[8px] font-bold text-stone-400 uppercase block mb-1 truncate">SKU (Opc.)</span>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[8px] font-bold text-stone-400 uppercase block truncate">SKU</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              actualizarTallaValores(
+                                colorIdx,
+                                tallaIdx,
+                                'sku',
+                                generarSKU(nombreProducto, tallaItem.talla)
+                              )
+                            }
+                            className="text-[8px] text-stone-500 hover:text-stone-900 underline font-semibold cursor-pointer"
+                            title="Generar nuevo SKU aleatorio"
+                          >
+                            Auto
+                          </button>
+                        </div>
                         <input
                           type="text"
-                          placeholder="ROJO-M"
+                          placeholder="SKU"
                           value={tallaItem.sku}
                           onChange={(e) => actualizarTallaValores(colorIdx, tallaIdx, 'sku', e.target.value)}
-                          className="w-full bg-white border border-stone-200 rounded-lg p-1.5 text-xs outline-none focus:border-stone-800"
+                          className="w-full bg-white border border-stone-200 rounded-lg p-1.5 text-xs font-mono font-bold uppercase outline-none focus:border-stone-800"
                         />
                       </div>
 
-                      {/* STOCK (Columna 3 en móvil, 3 en escritorio) */}
+                      {/* STOCK */}
                       <div className="col-span-3 sm:col-span-3">
                         <span className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Stock</span>
                         <input
@@ -732,7 +782,7 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
                         />
                       </div>
 
-                      {/* ELIMINAR TALLA (Columna 1) */}
+                      {/* ELIMINAR TALLA */}
                       <div className="col-span-1 flex justify-center pb-1">
                         {grupo.tallas.length > 1 && (
                           <button
