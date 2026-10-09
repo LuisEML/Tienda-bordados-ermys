@@ -92,6 +92,9 @@ export default function TablaGestionProductos({
   const [pestanaActiva, setPestanaActiva] = useState<"productos" | "suscriptores" | "pedidos">("productos");
   const [notificacion, setNotificacion] = useState({ mostrar: false, mensaje: "" });
 
+  // 1. Estado para la pestaña seleccionada
+  const [canalFiltro, setCanalFiltro] = useState<'todos' | 'online' | 'pos'>('online');
+
   // ------------------------------------------
   // ESTADOS: PRODUCTOS Y CATEGORÍAS
   // ------------------------------------------
@@ -1131,6 +1134,17 @@ const indiceInicioOrdenes = (paginaActualOrdenes - 1) * elementosPorPaginaOrdene
 const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInicioOrdenes + elementosPorPaginaOrdenes);
 
 
+
+  // 2. Filtrar la lista de productos según la pestaña activa
+const productosFiltradosPorCanal = productos.filter((prod) => {
+  if (canalFiltro === 'online') return prod.disponible_en_linea === true;
+  if (canalFiltro === 'pos') return prod.disponible_en_linea === false;
+  return true; // 'todos'
+});
+
+// 3. Paginación sobre la lista filtrada
+const productosPaginados = productosFiltradosPorCanal.slice(primerIndice, ultimoIndice);
+
   // ==========================================
   // 7. RENDERIZADO (JSX)
   // ==========================================
@@ -1619,6 +1633,45 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                   })}
                 </div>
 
+                <div className="flex items-center gap-2 border-b border-stone-200 pb-3 mb-6">
+                    <button
+                      type="button"
+                      onClick={() => { setCanalFiltro('online'); setPaginaActual(1); }}
+                      className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                        canalFiltro === 'online'
+                          ? "bg-stone-800 text-white shadow-sm"
+                          : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                      }`}
+                    >
+                      🌐 Tienda Online ({productos.filter(p => p.disponible_en_linea).length})
+                    </button>
+                  
+                    <button
+                      type="button"
+                      onClick={() => { setCanalFiltro('pos'); setPaginaActual(1); }}
+                      className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                        canalFiltro === 'pos'
+                          ? "bg-stone-800 text-white shadow-sm"
+                          : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                      }`}
+                    >
+                      🏪 Solo POS / Física ({productos.filter(p => !p.disponible_en_linea).length})
+                    </button>
+                  
+                    <button
+                      type="button"
+                      onClick={() => { setCanalFiltro('todos'); setPaginaActual(1); }}
+                      className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                        canalFiltro === 'todos'
+                          ? "bg-stone-800 text-white shadow-sm"
+                          : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                      }`}
+                    >
+                      📦 Todo el Inventario ({productos.length})
+                    </button>
+                 </div>
+                
+
                 {/* ---------------- VISTA ESCRITORIO (TABLA) ---------------- */}
               <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
                   <div className="overflow-x-auto">
@@ -1896,7 +1949,7 @@ const ordenesPaginadas = ordenesFiltradas.slice(indiceInicioOrdenes, indiceInici
                 </tbody>
               </table>
             </div>
-              </div>
+          </div>
 
           {/* CONTROLES DE PAGINACIÓN */}
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
