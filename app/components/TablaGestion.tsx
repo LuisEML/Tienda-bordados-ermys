@@ -1143,7 +1143,7 @@ const productosFiltradosPorCanal = productos.filter((prod) => {
 });
 
 // 3. Paginación sobre la lista filtrada
-const productosPaginados = productosFiltradosPorCanal.slice(primerIndice, ultimoIndice);
+//const productosPaginados = productosFiltradosPorCanal.slice(primerIndice, ultimoIndice);
 
   // ==========================================
   // 7. RENDERIZADO (JSX)
