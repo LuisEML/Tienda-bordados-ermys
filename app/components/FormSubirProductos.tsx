@@ -313,7 +313,9 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
       if (!categoriaId) throw new Error("Debes seleccionar una categoría");
 
       // 1. Subir Foto Principal
-      const mainFileName = `${Date.now()}-main-${mainFile.name}`;
+      // ✅ AHORA (Saneado):
+      const nombreLimpio = mainFile.name.replace(/[^a-zA-Z0-9.]/g, "_");
+      const mainFileName = `${Date.now()}-main-${nombreLimpio}`;
       const { error: uploadError } = await supabase.storage
         .from('fotos-productos')
         .upload(mainFileName, mainFile);
@@ -331,7 +333,9 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
       for (const grupo of gruposColor) {
         if (grupo.filesToUpload && grupo.filesToUpload.length > 0) {
           for (const file of grupo.filesToUpload) {
-            const fileName = `${Date.now()}-var-${file.name}`;
+            // ✅ AHORA (Saneado):
+            const nombreVarLimpio = file.name.replace(/[^a-zA-Z0-9.]/g, "_");
+            const fileName = `${Date.now()}-var-${nombreVarLimpio}`;
             const { error: errVar } = await supabase.storage
               .from('fotos-productos')
               .upload(fileName, file);
