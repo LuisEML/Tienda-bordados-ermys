@@ -4,6 +4,7 @@ import { Plus, Trash2, ImageIcon, X, AlertCircle, FolderPlus } from "lucide-reac
 import { crearProductoCompletoAction } from "@/app/admin/actions";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { calcularPrecioWebConComision } from "@/lib/comisiones";
 
 interface Categoria {
   id: string;
@@ -73,6 +74,15 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
   const [guiaNinasFile, setGuiaNinasFile] = useState<File | null>(null);
   const [guiaGeneralFile, setGuiaGeneralFile] = useState<File | null>(null);
   const [tipoGuiaCategoria, setTipoGuiaCategoria] = useState<'genero' | 'general'>('genero');
+
+
+  // Dentro de tu componente FormSubirProductos:
+  const [precioMenudeoBase, setPrecioMenudeoBase] = useState<number | "">("");
+  const [precioMayoreoBase, setPrecioMayoreoBase] = useState<number | "">("");
+  
+  // Cálculos automáticos para vista previa
+  const precioMenudeoWeb = typeof precioMenudeoBase === "number" ? calcularPrecioWebConComision(precioMenudeoBase) : 0;
+  const precioMayoreoWeb = typeof precioMayoreoBase === "number" ? calcularPrecioWebConComision(precioMayoreoBase) : 0;
 
   // --- PORTADA Y DATOS GENERALES ---
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -308,6 +318,13 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
     const formData = new FormData(form);
     const mainFile = formData.get("imagen_file") as File;
 
+    // En handleSubmit de FormSubirProductos.tsx:
+  const precioFinalMenudeo = calcularPrecioWebConComision(Number(precioMenudeoBase));
+  const precioFinalMayoreo = calcularPrecioWebConComision(Number(precioMayoreoBase));
+  
+  formData.set("precio_menudeo", precioFinalMenudeo.toString());
+  formData.set("precio_mayoreo", precioFinalMayoreo.toString());
+    
     try {
       if (!mainFile || mainFile.size === 0) throw new Error("Debes seleccionar una imagen principal");
       if (!categoriaId) throw new Error("Debes seleccionar una categoría");
@@ -581,11 +598,52 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Precios</label>
-            <div className="flex gap-2">
-              <input name="precio_menudeo" type="number" step="0.01" min="0" required className="w-1/2 p-3 border border-stone-200 rounded-lg text-sm" placeholder="Menudeo ($)" />
-              <input name="precio_mayoreo" type="number" step="0.01" min="0" required className="w-1/2 p-3 border border-stone-200 rounded-lg text-sm" placeholder="Mayoreo ($)" />
-            </div>
+              <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                Precios Base (Tienda Física / POS)
+              </label>
+              
+              <div className="flex gap-2">
+                <input
+                  name="precio_menudeo"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={precioMenudeoBase}
+                  onChange={(e) => setPrecioMenudeoBase(parseFloat(e.target.value) || "")}
+                  className="w-1/2 p-3 border border-stone-200 rounded-lg text-sm"
+                  placeholder="Menudeo ($)"
+                />
+                <input
+                  name="precio_mayoreo"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={precioMayoreoBase}
+                  onChange={(e) => setPrecioMayoreoBase(parseFloat(e.target.value) || "")}
+                  className="w-1/2 p-3 border border-stone-200 rounded-lg text-sm"
+                  placeholder="Mayoreo ($)"
+                />
+              </div>
+            
+              {/* VISTA PREVIA AUTOMÁTICA DEL PRECIO EN TIENDA ONLINE */}
+              {precioMenudeoBase && Number(precioMenudeoBase) > 0 && (
+                <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-800 block">
+                    💡 Precio sugerido para Tienda Online (Comisión Incluida)
+                  </span>
+                  <div className="flex justify-between items-center text-xs text-emerald-900 font-bold">
+                    <span>Menudeo Web: <strong>${precioMenudeoWeb} MXN</strong></span>
+                    {precioMayoreoBase && (
+                      <span>Mayoreo Web: <strong>${precioMayoreoWeb} MXN</strong></span>
+                    )}
+                  </div>
+                  <p className="text-[9px] text-emerald-700 italic">
+                    Al vender en ${precioMenudeoWeb} en la web, la pasarela descuenta su comisión y recibes tus ${precioMenudeoBase} netos.
+                  </p>
+                </div>
+              )}
           </div>
 
           <div className="md:col-span-2 flex flex-col gap-2">
