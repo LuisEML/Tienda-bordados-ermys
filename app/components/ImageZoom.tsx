@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, MouseEvent } from "react";
+import { useState, MouseEvent, useEffect } from "react";
 import { ZoomIn, Maximize2, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -14,8 +14,15 @@ export default function ImageZoom({ src, alt = "Imagen del producto" }: ImageZoo
   const [isHovered, setIsHovered] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Reiniciar hover si cambia la fuente de la imagen
+  useEffect(() => {
+    setIsHovered(false);
+  }, [src]);
+
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    if (width === 0 || height === 0) return;
+
     const x = ((e.clientX - left) / width) * 100;
     const y = ((e.clientY - top) / height) * 100;
     setZoomPosition({ x, y });
@@ -24,31 +31,28 @@ export default function ImageZoom({ src, alt = "Imagen del producto" }: ImageZoo
   return (
     <>
       <div
-        className="relative w-full aspect-[4/5] bg-white rounded-2xl overflow-hidden border border-stone-100 shadow-xs cursor-zoom-in group select-none"
+        className="relative w-full aspect-[4/5] bg-stone-50 rounded-2xl overflow-hidden border border-stone-100 shadow-xs cursor-zoom-in group select-none"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onMouseMove={handleMouseMove}
       >
-        {/* Imagen Base */}
+        {/* Imagen Base (Siempre visible para evitar parpadeos en blanco) */}
         <img
           src={src}
           alt={alt}
-          className={`w-full h-full object-cover transition-opacity duration-200 ${
-            isHovered ? "opacity-0" : "opacity-100"
-          }`}
+          className="w-full h-full object-cover"
         />
 
-        {/* Capa de Lupa enfocada en el cursor */}
-        {isHovered && (
-          <div
-            className="absolute inset-0 pointer-events-none bg-no-repeat"
-            style={{
-              backgroundImage: `url(${src})`,
-              backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
-              backgroundSize: "250%",
-            }}
-          />
-        )}
+        {/* Capa de Lupa Enfocada (Se superpone a la imagen base) */}
+        <div
+          className="absolute inset-0 pointer-events-none bg-no-repeat transition-opacity duration-150 ease-out"
+          style={{
+            opacity: isHovered ? 1 : 0,
+            backgroundImage: `url("${src}")`,
+            backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+            backgroundSize: "250%",
+          }}
+        />
 
         {/* Ícono de Lupa (Esquina inferior derecha) */}
         {!isHovered && (
@@ -61,7 +65,7 @@ export default function ImageZoom({ src, alt = "Imagen del producto" }: ImageZoo
         <button
           type="button"
           onClick={(e) => {
-            e.stopPropagation(); // Evita interferencias con el hover
+            e.stopPropagation();
             setIsModalOpen(true);
           }}
           className="absolute top-4 right-4 z-10 bg-white/90 hover:bg-white backdrop-blur-md p-2.5 rounded-full shadow-sm text-stone-700 hover:text-stone-900 transition-all hover:scale-110 cursor-pointer focus:outline-none"
@@ -94,6 +98,7 @@ export default function ImageZoom({ src, alt = "Imagen del producto" }: ImageZoo
             >
               {/* Botón de Cerrar */}
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="absolute -top-12 right-0 md:top-2 md:right-2 z-20 bg-black/50 hover:bg-black/80 text-white p-2.5 rounded-full transition-all cursor-pointer focus:outline-none"
               >

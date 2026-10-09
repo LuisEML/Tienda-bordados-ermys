@@ -18,8 +18,8 @@ export default function VistaProducto({ producto }: { producto: any }) {
   const obtenerImagenesDelColor = (): string[] => {
     const lista: string[] = [];
 
-    // 1. Siempre incluir la imagen principal del producto si existe
-    if (producto.imagen_principal_url) {
+    // 1. Imagen principal
+    if (producto?.imagen_principal_url && producto.imagen_principal_url.trim() !== "") {
       lista.push(producto.imagen_principal_url);
     }
 
@@ -37,7 +37,7 @@ export default function VistaProducto({ producto }: { producto: any }) {
         }
       });
     }
-    return lista.length > 0 ? lista : ["/placeholder.jpg"];
+    return lista.length > 0 ? lista : [producto?.imagen_principal_url || "/placeholder.jpg"];
   };
 
   const imagenesDelColor = obtenerImagenesDelColor();
@@ -50,10 +50,10 @@ export default function VistaProducto({ producto }: { producto: any }) {
   // 1. SINCRONIZACIÓN DE SEGURIDAD: Actualizar imagen si cambia el producto o las imágenes cargadas
   useEffect(() => {
     const fotos = obtenerImagenesDelColor();
-    if (fotos.length > 0 && (!imagenGrande || !fotos.includes(imagenGrande))) {
+    if (fotos.length > 0) {
       setImagenGrande(fotos[0]);
     }
-  }, [producto.id, producto.imagen_principal_url]);
+  }, [producto?.id, producto?.imagen_principal_url]);
 
   // MEMORIA DE COLOR: Cambiar la foto grande solo si el color activo cambia realmente
   const colorAnterior = useRef(colorActivo);
@@ -102,7 +102,7 @@ export default function VistaProducto({ producto }: { producto: any }) {
             <ImageZoom 
               key={imagenGrande}
               src={imagenGrande} 
-              alt={producto.nombre} 
+              alt={producto?.nombre || "Producto"} 
             />
           ) : (
             <div className="w-full h-96 bg-stone-100 flex items-center justify-center text-stone-400">
