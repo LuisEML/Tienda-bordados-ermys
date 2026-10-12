@@ -75,11 +75,7 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
   // Funciones para el contador
   const incrementar = () => {
     const maxStock = variacionSeleccionada ? variacionSeleccionada.stock : 10;
-    if (cantidad < maxStock) setCantidad(cantidad + 1)
-       toast.error("Lo sentimos, ya no hay más stock disponible para esta talla y color.", {
-          description: "Has alcanzado el límite de existencias actuales.",
-          icon: "⚠️",
-        });;
+    if (cantidad < maxStock) setCantidad(cantidad + 1);
   };
 
   const decrementar = () => {
