@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useContext, useState, useEffect } from "react";
+import { toast } from "sonner"; // Asegúrate de tenerlo importado
 
 interface ProductoCarrito {
   id: string;
@@ -87,7 +88,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           if (item.cantidad < maxStock) {
             return { ...item, cantidad: item.cantidad + 1 };
           } else {
-            alert(`Lo sentimos, solo quedan ${maxStock} piezas disponibles de este modelo.`);
+            toast.error("Lo sentimos, ya no hay más stock disponible para esta talla y color.", {
+              description: "Has alcanzado el límite de existencias actuales.",
+              icon: "⚠️",
+            });
           }
         }
         return item;
