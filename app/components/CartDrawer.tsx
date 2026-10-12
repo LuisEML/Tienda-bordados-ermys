@@ -5,6 +5,7 @@ import { useCart } from "@/context/CartContext";
 import { X, Trash2, Plus, Minus, ShoppingBag, Truck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { calcularEnvio, CONFIG_ENVIO } from "@/lib/calculoEnvio";
+import { toast } from "sonner"; // Asegúrate de tenerlo importado
 
 export default function CarritoDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
 
@@ -33,6 +34,12 @@ export default function CarritoDrawer({ isOpen, onClose }: { isOpen: boolean; on
 
       const productoEnCarrito = items[items.length - 1]; 
 
+      // 1. Lanzamos una notificación personalizada bonita
+      toast.loading("Preparando tu checkout...", {
+        duration: 1000, // Se oculta al cambiar de página
+      });
+
+      setTimeout(()=> {
       if (productoEnCarrito && productoEnCarrito.producto_id_principal) {
           window.location.href = `/checkout?id=${productoEnCarrito.producto_id_principal}`;
       } else if (productoEnCarrito && productoEnCarrito.id) {
@@ -40,6 +47,7 @@ export default function CarritoDrawer({ isOpen, onClose }: { isOpen: boolean; on
       } else {
           window.location.href = "/checkout";
       }
+      }, 600);  
   };
 
   const handleRestar = (item: any) => {
