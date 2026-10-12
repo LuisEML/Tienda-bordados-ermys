@@ -80,6 +80,7 @@ export default async function ProductoDetalle({ params }: { params: Promise<{ id
       imagenes_producto (*) 
     `)
     .eq("id", id)
+    .eq("disponible_en_linea", true) // 👈 Agregas esta validación
     .single();
 
   if (error || !producto) {
