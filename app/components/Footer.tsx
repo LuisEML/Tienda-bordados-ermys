@@ -62,7 +62,7 @@ export default function Footer() {
         {/* BARRA INFERIOR: COPYRIGHT Y REDES */}
         <div className="border-t border-stone-800 pt-10 flex flex-col md:row justify-between items-center gap-6">
           <p className="text-[9px] uppercase tracking-widest text-stone-500">
-            © {anioActual} Bordados Ermy. Hecho con paciencia en México.
+            © {anioActual} Bordados Ermy’s. Hecho con paciencia en México.
           </p>
           
           <div className="flex gap-8">
