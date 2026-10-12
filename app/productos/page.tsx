@@ -173,7 +173,7 @@ export default function ProductosPage() {
         <div className="flex flex-col gap-8 mb-12">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-              <h1 className="font-serif text-4xl italic text-stone-800 tracking-wide">Bordados Ermy</h1>
+              <h1 className="font-serif text-4xl italic text-stone-800 tracking-wide">Bordados ERMY’S</h1>
               <p className="text-stone-500 text-sm mt-1">Piezas únicas hechas a mano</p>
             </div>
 
