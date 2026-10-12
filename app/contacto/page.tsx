@@ -211,13 +211,13 @@ const fadeInVariants: Variants = {
             <div className="bg-white p-8 rounded-2xl border border-stone-200/60 shadow-xs">
               <p className="text-[10px] uppercase tracking-[0.3em] text-stone-400 font-bold mb-6">Contáctanos en Redes</p>
               <div className="flex gap-4 items-center">
-                <a href="#" className="hover:scale-105 hover:bg-stone-900 hover:text-white transition-all p-3 bg-stone-100 rounded-xl text-stone-600" aria-label="Instagram">
+                <a href="https://www.instagram.com/bordadosermys?igsh=MTBzeWhicHhkcGtjZg%3D%3D" target="_blank" className="hover:scale-105 hover:bg-stone-900 hover:text-white transition-all p-3 bg-stone-100 rounded-xl text-stone-600" aria-label="Instagram">
                   <FaInstagram size={18} />
                 </a>
-                <a href="#" className="hover:scale-105 hover:bg-stone-900 hover:text-white transition-all p-3 bg-stone-100 rounded-xl text-stone-600" aria-label="Facebook">
+                <a href="https://www.facebook.com/people/Bordados-Ermys/pfbid029RnCJvng4VnPWgwTDM6kFmmWXrpGbVWA2NQjLfuRgMXbbGs54LZVSMCnuHtycZG7l/?mibextid=wwXlfr&rdid=VUYMZEtbr7NOf5nv&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F17J31V38kU%2F%3Fmibextid%3DwwXlfr" target="_blank" className="hover:scale-105 hover:bg-stone-900 hover:text-white transition-all p-3 bg-stone-100 rounded-xl text-stone-600" aria-label="Facebook">
                   <FaFacebookF size={16} />
                 </a>
-                <a href="#" className="hover:scale-105 hover:bg-stone-900 hover:text-white transition-all p-3 bg-stone-100 rounded-xl text-stone-600" aria-label="WhatsApp">
+                <a href="https://wa.me/2371144871?text=Hola, vengo de la tienda online de Bordados ERMY'S" target="_blank" className="hover:scale-105 hover:bg-stone-900 hover:text-white transition-all p-3 bg-stone-100 rounded-xl text-stone-600" aria-label="WhatsApp">
                   <FaWhatsapp size={18} />
                 </a>
               </div>
