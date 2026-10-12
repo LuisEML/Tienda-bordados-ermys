@@ -75,7 +75,11 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
   // Funciones para el contador
   const incrementar = () => {
     const maxStock = variacionSeleccionada ? variacionSeleccionada.stock : 10;
-    if (cantidad < maxStock) setCantidad(cantidad + 1);
+    if (cantidad < maxStock) setCantidad(cantidad + 1)
+       toast.error("Lo sentimos, ya no hay más stock disponible para esta talla y color.", {
+          description: "Has alcanzado el límite de existencias actuales.",
+          icon: "⚠️",
+        });;
   };
 
   const decrementar = () => {
@@ -98,10 +102,6 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
     if (!isNaN(num)) {
       if (num > maxStock) {
         setCantidad(maxStock); // Limita al máximo disponible
-        toast.error("Lo sentimos, ya no hay más stock disponible para esta talla y color.", {
-          description: "Has alcanzado el límite de existencias actuales.",
-          icon: "⚠️",
-        });
       } else if (num < 1) {
         setCantidad(1);
       } else {
