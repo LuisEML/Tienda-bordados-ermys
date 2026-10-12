@@ -98,6 +98,7 @@ export default async function ProductoDetalle({ params }: { params: Promise<{ id
       categorias (nombre)
     `)
     .eq("categoria_id", producto.categoria_id)
+    .eq("disponible_en_linea", true) // 👈 Agregas esta validación
     .neq("id", id)
     .limit(4);
 
