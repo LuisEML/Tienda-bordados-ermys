@@ -98,6 +98,10 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
     if (!isNaN(num)) {
       if (num > maxStock) {
         setCantidad(maxStock); // Limita al máximo disponible
+        toast.error("Lo sentimos, ya no hay más stock disponible para esta talla y color.", {
+          description: "Has alcanzado el límite de existencias actuales.",
+          icon: "⚠️",
+        });
       } else if (num < 1) {
         setCantidad(1);
       } else {
