@@ -75,7 +75,20 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
   // Funciones para el contador
   const incrementar = () => {
     const maxStock = variacionSeleccionada ? variacionSeleccionada.stock : 10;
-    if (cantidad < maxStock) setCantidad(cantidad + 1);
+    if (cantidad < maxStock) {
+        setCantidad(cantidad + 1);
+    } else {
+      toast.warning("Has alcanzado el límite máximo de stock disponible para esta talla.", {
+        style: {
+          background: "#ffffff",
+          color: "#1c1917",
+          borderRadius: "12px",
+          border: "1px solid #e7e5e4",
+          fontFamily: "ui-serif, Georgia, Cambria, serif",
+          fontSize: "12px",
+        }
+      });
+    }
   };
 
   const decrementar = () => {
@@ -98,6 +111,16 @@ export default function DetalleCompra({ producto, colorActivo, setColorActivo, i
     if (!isNaN(num)) {
       if (num > maxStock) {
         setCantidad(maxStock); // Limita al máximo disponible
+        toast.warning(`Solo hay ${maxStock} piezas disponibles en esta talla.`, {
+          style: {
+            background: "#ffffff",
+            color: "#1c1917",
+            borderRadius: "12px",
+            border: "1px solid #e7e5e4",
+            fontFamily: "ui-serif, Georgia, Cambria, serif",
+            fontSize: "12px",
+          }
+        });
       } else if (num < 1) {
         setCantidad(1);
       } else {
