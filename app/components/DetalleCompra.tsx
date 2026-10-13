@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import EnviosModal from "./EnviosModal";
+import { trackEvent } from "@/lib/meta-pixel"; // 1. Asegúrate de importar tu función de utilidad
 
 interface DetalleCompraProps {
   producto: any;
@@ -202,6 +203,15 @@ const handleCantidadBlur = () => {
         cantidad: cantidad,
         stock: variacionSeleccionada.stock,
         producto_id_principal: producto.id
+      });
+
+      // 2. Disparamos el evento hacia Meta Pixel al agregarse con éxito
+      trackEvent('AddToCart', {
+        content_name: producto.nombre,
+        content_ids: [variacionSeleccionada.sku],
+        content_type: 'product',
+        value: Number(producto.precio_menudeo) * cantidad, // Valor total por la cantidad seleccionada
+        currency: 'MXN'
       });
 
       setAgregadoAnimacion(true);
