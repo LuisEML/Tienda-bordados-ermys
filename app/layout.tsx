@@ -7,7 +7,6 @@ import BotonWhatsApp from "@/app/components/BotonWhatsApp";
 import ClientLayout from "./components/ClientLayout";
 import { META_PIXEL_ID } from '@/lib/meta-pixel';
 
-
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.ropatipicaermys.com.mx/"), // Sustituir por el dominio final
   title: {
