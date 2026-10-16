@@ -25,12 +25,76 @@ export async function POST(req: Request) {
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: "El carrito está vacío" }, { status: 400 });
+      
     }
+
+
+    // =================================================================
+    // 💡 PASO 0: VALIDAR Y OBTENER LOS PRECIOS REALES DESDE SUPABASE (SEGURIDAD)
+    // =================================================================
+    const itemsValidados = [];
+
+    for (const item of items) {
+      // Consultamos la variante en Supabase para obtener su precio específico
+      const { data: variacionDB, error: errVar } = await supabase
+        .from("variaciones")
+        .select("id, talla, color_nombre, stock, precio_menudeo, precio_mayoreo, producto_id")
+        .eq("id", item.id)
+        .single();
+
+      if (errVar || !variacionDB) {
+        return NextResponse.json({ error: `La variante del producto ${item.nombre} ya no está disponible.` }, { status: 400 });
+      }
+
+      // Consultamos el producto base por si necesitamos el precio general
+      const { data: productoDB, error: errProd } = await supabase
+        .from("productos")
+        .select("id, nombre, precio_menudeo, precio_mayoreo, cantidad_minima_mayoreo")
+        .eq("id", variacionDB.producto_id)
+        .single();
+
+      if (errProd || !productoDB) {
+        return NextResponse.json({ error: `Producto principal no encontrado.` }, { status: 400 });
+      }
+
+      // Validamos stock suficiente
+      if (variacionDB.stock < Number(item.cantidad)) {
+        return NextResponse.json({ error: `Stock insuficiente para ${productoDB.nombre} (Talla: ${variacionDB.talla}). Disponibles: ${variacionDB.stock}` }, { status: 400 });
+      }
+
+      // Aplicamos la lógica de precios: Si la variante tiene precio propio, se usa; si no, el del producto base
+      const cantidadComprada = Number(item.cantidad);
+      const minMayoreo = Number(productoDB.cantidad_minima_mayoreo || 12);
+      const esMayoreo = cantidadComprada >= minMayoreo;
+
+      let precioUnitarioReal = Number(variacionDB.precio_menudeo ?? productoDB.precio_menudeo);
+      
+      if (esMayoreo) {
+        const precioMayoreoReal = Number(variacionDB.precio_mayoreo ?? productoDB.precio_mayoreo);
+        if (precioMayoreoReal > 0) {
+          precioUnitarioReal = precioMayoreoReal;
+        }
+      }
+
+      itemsValidados.push({
+        ...item,
+        precio: precioUnitarioReal, // 🔒 Precio oficial validado directamente de la BD
+        producto_id_principal: productoDB.id,
+        talla: variacionDB.talla,
+        color: variacionDB.color_nombre,
+      });
+    }
+
+
+
 
     // 💡 Calculamos el total real de la orden en el servidor para mayor seguridad
     const totalProductos = items.reduce((acc: number, item: any) => acc + (item.precio * item.cantidad), 0);
     const totalOrden = totalProductos + Number(costoEnvio || 0);
     //const totalOrden = totalProductos; 
+
+
+
 
     // =================================================================
     // 🏠 PASO 1: REGISTRAR LA ORDEN MAESTRA EN SUPABASE (Tabla: ordenes)

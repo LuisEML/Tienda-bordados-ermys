@@ -17,6 +17,9 @@ interface TallaStock {
   talla: string;
   stock: number;
   sku: string;
+  precio_menudeo?: number | ""; //👈 NUEVO
+  precio_mayoreo?: number | ""; //👈 NUEVO
+
 }
 
 interface GrupoColor {
@@ -176,6 +179,8 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
               talla: tallaTexto,
               sku: nuevoSKU,
               stock: 10,
+              precio_menudeo: "", // 👈 NUEVO
+              precio_mayoreo: "", // 👈 NUEVO
             },
           ],
         };
@@ -369,13 +374,24 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
         for (const t of grupo.tallas) {
           const skuFinal = t.sku || generarSKU(nombreProducto, t.talla);
 
+          // Calcular precios web con comisión si se especificaron, de lo contrario dejar null
+          const precioMenudeoVarFinal = t.precio_menudeo !== "" && Number(t.precio_menudeo) > 0
+            ? calcularPrecioWebConComision(Number(t.precio_menudeo))
+            : null;
+
+          const precioMayoreoVarFinal = t.precio_mayoreo !== "" && Number(t.precio_mayoreo) > 0
+            ? calcularPrecioWebConComision(Number(t.precio_mayoreo))
+            : null;
+
           variacionesAInsertar.push({
             talla: t.talla || "Unitalla",
             color_nombre: grupo.color_nombre,
             color_hex: grupo.color_hex,
             stock: t.stock,
             sku: skuFinal,
-            imagenes: []
+            imagenes: [],
+            precio_menudeo: precioMenudeoVarFinal, // 👈 SE ENVÍA A SUPABASE
+            precio_mayoreo: precioMayoreoVarFinal  // 👈 SE ENVÍA A SUPABASE
           });
         }
       }
@@ -778,70 +794,107 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
 
                 <div className="space-y-3">
                   {grupo.tallas.map((tallaItem, tallaIdx) => (
-                    <div key={tallaIdx} className="grid grid-cols-12 gap-2 items-end bg-stone-50/70 p-2.5 rounded-xl border border-stone-100">
-                      
-                      <div className="col-span-4 sm:col-span-4">
-                        <span className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Talla</span>
-                        <input
-                          type="text"
-                          placeholder="Ej. M, G..."
-                          value={tallaItem.talla}
-                          onChange={(e) => actualizarTallaValores(colorIdx, tallaIdx, 'talla', e.target.value)}
-                          className="w-full bg-white border border-stone-200 rounded-lg p-1.5 text-xs font-semibold outline-none focus:border-stone-800"
-                        />
-                      </div>
-
-                      <div className="col-span-4 sm:col-span-4">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[8px] font-bold text-stone-400 uppercase block truncate">SKU</span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              actualizarTallaValores(
-                                colorIdx,
-                                tallaIdx,
-                                'sku',
-                                generarSKU(nombreProducto, tallaItem.talla)
-                              )
-                            }
-                            className="text-[8px] text-stone-500 hover:text-stone-900 underline font-semibold cursor-pointer"
-                            title="Generar nuevo SKU aleatorio"
-                          >
-                            Auto
-                          </button>
+                    <div key={tallaIdx} className="bg-stone-50/70 p-3 rounded-xl border border-stone-100 space-y-3">
+                      <div className="grid grid-cols-12 gap-2 items-end">
+                        
+                        {/* TALLA */}
+                        <div className="col-span-4 sm:col-span-4">
+                          <span className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Talla</span>
+                          <input
+                            type="text"
+                            placeholder="Ej. M, G..."
+                            value={tallaItem.talla}
+                            onChange={(e) => actualizarTallaValores(colorIdx, tallaIdx, 'talla', e.target.value)}
+                            className="w-full bg-white border border-stone-200 rounded-lg p-1.5 text-xs font-semibold outline-none focus:border-stone-800"
+                          />
                         </div>
-                        <input
-                          type="text"
-                          placeholder="SKU"
-                          value={tallaItem.sku}
-                          onChange={(e) => actualizarTallaValores(colorIdx, tallaIdx, 'sku', e.target.value)}
-                          className="w-full bg-white border border-stone-200 rounded-lg p-1.5 text-xs font-mono font-bold uppercase outline-none focus:border-stone-800"
-                        />
+
+                        {/* SKU */}
+                        <div className="col-span-4 sm:col-span-4">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[8px] font-bold text-stone-400 uppercase block truncate">SKU</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                actualizarTallaValores(
+                                  colorIdx,
+                                  tallaIdx,
+                                  'sku',
+                                  generarSKU(nombreProducto, tallaItem.talla)
+                                )
+                              }
+                              className="text-[8px] text-stone-500 hover:text-stone-900 underline font-semibold cursor-pointer"
+                            >
+                              Auto
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="SKU"
+                            value={tallaItem.sku}
+                            onChange={(e) => actualizarTallaValores(colorIdx, tallaIdx, 'sku', e.target.value)}
+                            className="w-full bg-white border border-stone-200 rounded-lg p-1.5 text-xs font-mono font-bold uppercase outline-none focus:border-stone-800"
+                          />
+                        </div>
+
+                        {/* STOCK */}
+                        <div className="col-span-3 sm:col-span-3">
+                          <span className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Stock</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={tallaItem.stock}
+                            onChange={(e) => actualizarTallaValores(colorIdx, tallaIdx, 'stock', e.target.value)}
+                            className="w-full bg-white border border-stone-200 rounded-lg p-1.5 text-xs font-bold text-center outline-none focus:border-stone-800"
+                          />
+                        </div>
+
+                        {/* BOTÓN ELIMINAR */}
+                        <div className="col-span-1 flex justify-center pb-1">
+                          {grupo.tallas.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => eliminarTallaDeColor(colorIdx, tallaIdx)}
+                              className="p-1 text-stone-400 hover:text-red-500 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="col-span-3 sm:col-span-3">
-                        <span className="text-[8px] font-bold text-stone-400 uppercase block mb-1">Stock</span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={tallaItem.stock}
-                          onChange={(e) => actualizarTallaValores(colorIdx, tallaIdx, 'stock', e.target.value)}
-                          className="w-full bg-white border border-stone-200 rounded-lg p-1.5 text-xs font-bold text-center outline-none focus:border-stone-800"
-                        />
+                      {/* 💡 NUEVOS INPUTS: PRECIOS OPCIONALES POR TALLA */}
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-stone-200/60">
+                        <div>
+                          <span className="text-[7px] font-bold text-amber-700 uppercase block mb-0.5">
+                            Precio Menudeo Específico (Opcional)
+                          </span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="Usa base si está vacío"
+                            value={tallaItem.precio_menudeo ?? ""}
+                            onChange={(e) => actualizarTallaValores(colorIdx, tallaIdx, 'precio_menudeo', e.target.value === "" ? "" : parseFloat(e.target.value))}
+                            className="w-full bg-white border border-stone-200 rounded-md p-1 text-[11px] outline-none focus:border-stone-800"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[7px] font-bold text-amber-700 uppercase block mb-0.5">
+                            Precio Mayoreo Específico (Opcional)
+                          </span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="Usa base si está vacío"
+                            value={tallaItem.precio_mayoreo ?? ""}
+                            onChange={(e) => actualizarTallaValores(colorIdx, tallaIdx, 'precio_mayoreo', e.target.value === "" ? "" : parseFloat(e.target.value))}
+                            className="w-full bg-white border border-stone-200 rounded-md p-1 text-[11px] outline-none focus:border-stone-800"
+                          />
+                        </div>
                       </div>
 
-                      <div className="col-span-1 flex justify-center pb-1">
-                        {grupo.tallas.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => eliminarTallaDeColor(colorIdx, tallaIdx)}
-                            className="p-1 text-stone-400 hover:text-red-500 transition-colors"
-                            title="Eliminar fila"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
                     </div>
                   ))}
                 </div>
