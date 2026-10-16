@@ -159,8 +159,8 @@ const handleCantidadBlur = () => {
       const productoFormateado = {
         id: variacionSeleccionada.id,
         nombre: producto.nombre,
-        precio: Number(producto.precio_menudeo || 0),
-        precio_mayoreo: Number(producto.precio_mayoreo || 0),
+        precio: precioMenudeoActual, // 👈 Precio adaptado a la talla
+        precio_mayoreo: precioMayoreoActual, // 👈 Precio adaptado a la talla
         cantidad_minima_mayoreo: Number(producto.cantidad_minima_mayoreo || 12),
         color: colorActivo,
         talla: tallaSeleccionada,
@@ -194,8 +194,8 @@ const handleCantidadBlur = () => {
       agregarProducto({
         id: variacionSeleccionada.id,
         nombre: producto.nombre,
-        precio: Number(producto.precio_menudeo || 0),
-        precio_mayoreo: Number(producto.precio_mayoreo || 0),
+        precio: precioMenudeoActual, // 👈 Precio adaptado a la talla
+        precio_mayoreo: precioMayoreoActual, // 👈 Precio adaptado a la talla
         cantidad_minima_mayoreo: Number(producto.cantidad_minima_mayoreo || 12),
         color: colorActivo,
         talla: tallaSeleccionada,
@@ -210,7 +210,7 @@ const handleCantidadBlur = () => {
         content_name: producto.nombre,
         content_ids: [variacionSeleccionada.sku],
         content_type: 'product',
-        value: Number(producto.precio_menudeo) * cantidad, // Valor total por la cantidad seleccionada
+        value: precioUnitarioVenta * cantidad, // Valor total por la cantidad seleccionada
         currency: 'MXN'
       });
 
@@ -220,21 +220,30 @@ const handleCantidadBlur = () => {
     }
   };
 
+
+  // 💡 PRECIOS DINÁMICOS POR TALLA:
+  // Si la variación seleccionada tiene un precio de menudeo o mayoreo propio, lo usa; si no, toma el base del producto.
+  const precioMenudeoActual = Number(variacionSeleccionada?.precio_menudeo ?? producto.precio_menudeo ?? 0);
+  const precioMayoreoActual = Number(variacionSeleccionada?.precio_mayoreo ?? producto.precio_mayoreo ?? 0);
+
   // INDICADOR DE MAYOREO
   const minimoMayoreo = Number(producto.cantidad_minima_mayoreo || 12);
-  const tienePrecioMayoreoConfigurado = Number(producto.precio_mayoreo) > 0;
+  const tienePrecioMayoreoConfigurado = precioMayoreoActual > 0;
   const faltanParaMayoreo = Math.max(0, minimoMayoreo - cantidad);
   const alcanzoMayoreo = cantidad >= minimoMayoreo && tienePrecioMayoreoConfigurado;
+
+
+  const precioUnitarioVenta = alcanzoMayoreo ? precioMayoreoActual : precioMenudeoActual;
 
   return (
     <div className="space-y-6">
       {/* PRECIO */}
       <div className="flex flex-col gap-0.5">
         <p className="text-3xl font-light text-stone-900">
-          ${producto.precio_menudeo} <span className="text-sm font-sans text-stone-400">MXN</span>
+          ${precioMenudeoActual} <span className="text-sm font-sans text-stone-400">MXN</span>
         </p>
         <p className="text-xs text-tierra font-medium">
-          Precio Mayoreo: ${producto.precio_mayoreo} <span className="text-stone-400 font-normal">(desde {producto.cantidad_minima_mayoreo || 12} pzas)</span>
+          Precio Mayoreo: ${precioMayoreoActual} <span className="text-stone-400 font-normal">(desde {producto.cantidad_minima_mayoreo || 12} pzas)</span>
         </p>
       </div>
 
@@ -362,14 +371,14 @@ const handleCantidadBlur = () => {
               <p className="text-[11px] font-medium text-emerald-900 leading-snug">
                 <span className="font-bold uppercase tracking-wider">¡Aplica Precio Mayoreo!</span> 
                 <br />
-                Pagarás <span className="font-bold">${producto.precio_mayoreo} MXN</span> por pieza.
+                Pagarás <span className="font-bold">${precioMayoreoActual} MXN</span> por pieza.
               </p>
             </div>
           ) : (
             <div className="bg-amber-50/80 border border-amber-200/60 rounded-xl p-3 flex items-center gap-2.5 transition-all">
               <span className="text-base">💡</span>
               <p className="text-[11px] font-medium text-amber-900 leading-snug">
-                Agrega <span className="font-bold text-amber-950 underline decoration-amber-400">{faltanParaMayoreo} pieza{faltanParaMayoreo > 1 ? "s" : ""} más</span> para desbloquear la tarifa de Mayoreo a <span className="font-bold">${producto.precio_mayoreo} MXN</span> c/u.
+                Agrega <span className="font-bold text-amber-950 underline decoration-amber-400">{faltanParaMayoreo} pieza{faltanParaMayoreo > 1 ? "s" : ""} más</span> para desbloquear la tarifa de Mayoreo a <span className="font-bold">${precioMayoreoActual} MXN</span> c/u.
               </p>
             </div>
           )}

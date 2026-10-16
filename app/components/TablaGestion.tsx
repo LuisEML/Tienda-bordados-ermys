@@ -40,6 +40,9 @@ interface Variacion {
   stock: number;
   color_nombre: string;
   sku?: string;
+  // 👇 AGREGUÉMOSLE ESTAS DOS LÍNEAS AQUÍ:
+  precio_menudeo?: number | null;
+  precio_mayoreo?: number | null;
 }
 
 interface Producto {
@@ -188,6 +191,9 @@ export default function TablaGestionProductos({
     stock: 10,
     colorHex: "#000000",
   });
+
+  // nuevo useState
+  const [productoExpandidoId, setProductoExpandidoId] = useState<string | null>(null);
 
   // ==========================================
   // 4. EFECTOS (CICLO DE VIDA)
@@ -912,6 +918,39 @@ export default function TablaGestionProductos({
     }
   };
 
+
+  // Funciones para actualizar los precios de cada talla
+  const actualizarPrecioMenudeoVariacion = async (variacionId: string, nuevoPrecio: number | null, productoId: string) => {
+  try {
+    const { error } = await supabase
+      .from("variaciones")
+      .update({ precio_menudeo: nuevoPrecio })
+      .eq("id", variacionId);
+
+    if (error) throw error;
+    toast.success("Precio de menudeo por talla actualizado");
+    // Opcional: recargar o actualizar estado local de productos
+  } catch (err: any) {
+    toast.error("Error al actualizar precio: " + err.message);
+  }
+  };
+
+  const actualizarPrecioMayoreoVariacion = async (variacionId: string, nuevoPrecio: number | null, productoId: string) => {
+    try {
+      const { error } = await supabase
+        .from("variaciones")
+        .update({ precio_mayoreo: nuevoPrecio })
+        .eq("id", variacionId);
+
+      if (error) throw error;
+      toast.success("Precio de mayoreo por talla actualizado");
+    } catch (err: any) {
+      toast.error("Error al actualizar precio: " + err.message);
+    }
+  };
+
+
+
   if (productos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-dashed border-stone-200">
@@ -1320,6 +1359,8 @@ export default function TablaGestionProductos({
                 <div className="grid grid-cols-1 gap-4 md:hidden">
                   {productosPaginados.map((prod) => {
                     const esEditando = editandoId === prod.id;
+                    const estaExpandido = productoExpandidoId === prod.id; // 👈 Estado del acordeón móvil
+
                     return (
                       <div key={prod.id} className="bg-white p-4 rounded-3xl border border-stone-200 shadow-sm space-y-4">
                         <div className="flex gap-3">
@@ -1380,7 +1421,6 @@ export default function TablaGestionProductos({
                                 <div className="space-y-1">
                                   <h4 className="text-base font-bold text-stone-800 truncate leading-tight">{prod.nombre}</h4>
                                   
-                                  {/* BADGE CANAL DE VENTA MÓVIL */}
                                   <button
                                     type="button"
                                     onClick={() => toggleDisponibleEnLinea(prod.id, !!prod.disponible_en_linea)}
@@ -1398,7 +1438,7 @@ export default function TablaGestionProductos({
 
                             <div className="flex justify-between items-center mt-2 pt-2 border-t border-stone-100">
                               <div className="flex flex-col">
-                                <span className="text-[8px] text-stone-400 uppercase font-black">Menudeo</span>
+                                <span className="text-[8px] text-stone-400 uppercase font-black">Menudeo Base</span>
                                 {esEditando ? (
                                   <input type="number" min="0" value={tempData.precio_menudeo} onChange={(e) => setTempData({ ...tempData, precio_menudeo: e.target.value })} className="w-14 border-b border-stone-400 outline-none font-bold text-xs" />
                                 ) : (
@@ -1406,7 +1446,7 @@ export default function TablaGestionProductos({
                                 )}
                               </div>
                               <div className="flex flex-col text-right">
-                                <span className="text-[8px] text-stone-400 uppercase font-black">Mayoreo</span>
+                                <span className="text-[8px] text-stone-400 uppercase font-black">Mayoreo Base</span>
                                 {esEditando ? (
                                   <input type="number" min="0" value={tempData.precio_mayoreo} onChange={(e) => setTempData({ ...tempData, precio_mayoreo: e.target.value })} className="w-14 border-b border-stone-400 outline-none font-bold text-xs text-right" />
                                 ) : (
@@ -1427,66 +1467,140 @@ export default function TablaGestionProductos({
                           )}
                         </div>
 
-                        {/* Variaciones Móvil */}
-                        <div className="space-y-1.5">
-                          <span className="text-[9px] font-black text-stone-400 uppercase tracking-wider block">Variaciones y Stock</span>
-                          <div className="grid grid-cols-1 gap-2">
-                            {prod.variaciones?.map((v: Variacion, i: number) => (
-                              <div key={i} className="flex items-center justify-between gap-2 bg-stone-50/80 border border-stone-200/80 p-2 rounded-2xl">
-                                <label className="relative cursor-pointer shrink-0 flex items-center justify-center" title="Cambiar color visual">
-                                  <div className="w-5 h-5 rounded-full border border-stone-300 shadow-xs" style={{ backgroundColor: v.color_hex }} />
-                                  <input 
-                                    type="color" 
-                                    value={v.color_hex || "#000000"} 
-                                    onChange={(e) => actualizarColorVariacion(v.id, v.color_hex, e.target.value, prod.id)} 
-                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" 
-                                  />
-                                </label>
+                        {/* 💡 ACORDEÓN MÓVIL PARA VARIACIONES Y PRECIOS POR TALLA */}
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => setProductoExpandidoId(estaExpandido ? null : prod.id)}
+                            className="w-full flex items-center justify-between px-3 py-2 bg-stone-100 hover:bg-stone-200 rounded-2xl text-xs font-bold text-stone-700 transition-all cursor-pointer"
+                          >
+                            <span>🎨 Variantes y Stock ({prod.variaciones?.length || 0})</span>
+                            <span>{estaExpandido ? "▲ Ocultar" : "▼ Administrar"}</span>
+                          </button>
 
-                                <input
-                                  type="text"
-                                  defaultValue={v.color_nombre || ""}
-                                  placeholder="Nombre color"
-                                  onBlur={(e) => actualizarNombreColor(v.id, e.target.value, prod.id)}
-                                  className="flex-1 min-w-0 text-[11px] font-medium text-stone-700 bg-white border border-stone-200 rounded-lg px-2 py-1 outline-none focus:border-stone-400"
-                                />
+                          {estaExpandido && (
+                            <div className="space-y-2 p-2 bg-stone-50 border border-stone-200 rounded-2xl animate-in fade-in duration-200">
+                              <div className="grid grid-cols-1 gap-2">
+                                {prod.variaciones?.map((v: Variacion, i: number) => (
+                                  <div key={v.id || i} className="flex flex-col gap-2 bg-white border border-stone-200 p-2.5 rounded-xl shadow-xs">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <label className="relative cursor-pointer shrink-0 flex items-center justify-center">
+                                          <div className="w-5 h-5 rounded-full border border-stone-300 shadow-xs" style={{ backgroundColor: v.color_hex }} />
+                                          <input 
+                                            type="color" 
+                                            value={v.color_hex || "#000000"} 
+                                            onChange={(e) => actualizarColorVariacion(v.id, v.color_hex, e.target.value, prod.id)} 
+                                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" 
+                                          />
+                                        </label>
+                                        <input
+                                          type="text"
+                                          defaultValue={v.color_nombre || ""}
+                                          placeholder="Color"
+                                          onBlur={(e) => actualizarNombreColor(v.id, e.target.value, prod.id)}
+                                          className="w-24 text-xs font-medium text-stone-700 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 outline-none"
+                                        />
+                                        <input
+                                          type="text"
+                                          defaultValue={v.talla || ""}
+                                          placeholder="Talla"
+                                          onBlur={(e) => actualizarTallaVariacion(v.id, e.target.value, prod.id)}
+                                          className="w-12 text-xs font-bold text-stone-800 uppercase bg-stone-50 border border-stone-200 rounded-lg py-1 text-center outline-none"
+                                        />
+                                      </div>
 
-                                <input
-                                  type="text"
-                                  defaultValue={v.talla || ""}
-                                  placeholder="Talla"
-                                  onBlur={(e) => actualizarTallaVariacion(v.id, e.target.value, prod.id)}
-                                  className="w-11 text-[11px] font-bold text-stone-800 uppercase bg-white border border-stone-200 rounded-lg py-1 text-center outline-none focus:border-stone-400"
-                                />
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => agregarTallaAMismoColor(v, prod.id)}
+                                          className="text-[9px] font-bold text-stone-500 bg-stone-100 hover:bg-stone-200 px-1.5 py-1 rounded"
+                                          title="Añadir otra talla"
+                                        >
+                                          +talla
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setVariacionAEliminar({ id: v.id, productoId: prod.id, detalle: `${v.talla} / ${v.color_nombre}` })}
+                                          className="text-stone-400 hover:text-red-600 text-xs font-bold p-1"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    </div>
 
-                                <div className="flex items-center gap-1 bg-white border border-stone-200 rounded-lg px-1.5 py-1">
-                                  <span className="text-[9px] text-stone-400 font-bold">Stk:</span>
-                                  <input 
-                                    type="number" 
-                                    min="0" 
-                                    defaultValue={v.stock} 
-                                    onBlur={(e) => manejarAjusteStock(v.id, e.target.value, prod.id)} 
-                                    className="w-7 text-[11px] font-black text-stone-900 outline-none text-center bg-transparent" 
-                                  />
+                                    {/* Precios específicos y stock por variante en móvil */}
+                                    <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-stone-100">
+                                      <div>
+                                        <span className="text-[7px] font-bold text-amber-700 uppercase block">P. Menudeo</span>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          defaultValue={v.precio_menudeo ?? ""}
+                                          placeholder="Base"
+                                          onBlur={(e) => {
+                                            const val = e.target.value === "" ? null : parseFloat(e.target.value);
+                                            if (val !== v.precio_menudeo) actualizarPrecioMenudeoVariacion(v.id, val, prod.id);
+                                          }}
+                                          className="w-full text-[10px] font-bold bg-amber-50/60 border border-amber-200 rounded px-1 py-1 text-center outline-none"
+                                        />
+                                      </div>
+                                      <div>
+                                        <span className="text-[7px] font-bold text-amber-700 uppercase block">P. Mayoreo</span>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          defaultValue={v.precio_mayoreo ?? ""}
+                                          placeholder="Base"
+                                          onBlur={(e) => {
+                                            const val = e.target.value === "" ? null : parseFloat(e.target.value);
+                                            if (val !== v.precio_mayoreo) actualizarPrecioMayoreoVariacion(v.id, val, prod.id);
+                                          }}
+                                          className="w-full text-[10px] font-bold bg-amber-50/60 border border-amber-200 rounded px-1 py-1 text-center outline-none"
+                                        />
+                                      </div>
+                                      <div>
+                                        <span className="text-[7px] font-bold text-stone-400 uppercase block">Stock</span>
+                                        <input 
+                                          type="number" 
+                                          min="0" 
+                                          defaultValue={v.stock} 
+                                          onBlur={(e) => manejarAjusteStock(v.id, e.target.value, prod.id)} 
+                                          className="w-full text-xs font-black text-stone-900 border border-stone-200 bg-stone-50 rounded px-1 py-1 text-center outline-none" 
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Botón para añadir nuevo color en móvil */}
+                              {varianteNueva.productoId === prod.id ? (
+                                <div className="p-2 bg-stone-900 text-white rounded-xl space-y-2 mt-2">
+                                  <div className="flex items-center gap-2">
+                                    <input type="color" value={varianteNueva.colorHex} onChange={(e) => setVarianteNueva({ ...varianteNueva, colorHex: e.target.value })} className="w-6 h-6 bg-transparent border-0 cursor-pointer" />
+                                    <input type="text" placeholder="Nombre Color" value={varianteNueva.nombreColor} onChange={(e) => setVarianteNueva({ ...varianteNueva, nombreColor: e.target.value })} className="flex-1 text-xs bg-stone-800 text-white px-2 py-1 rounded outline-none" />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input type="text" placeholder="Talla" value={varianteNueva.talla} onChange={(e) => setVarianteNueva({ ...varianteNueva, talla: e.target.value })} className="w-16 text-xs font-bold uppercase bg-stone-800 text-white px-2 py-1 rounded outline-none text-center" />
+                                    <input type="number" min="0" placeholder="Stock" value={varianteNueva.stock} onChange={(e) => setVarianteNueva({ ...varianteNueva, stock: parseInt(e.target.value) || 0 })} className="w-16 text-xs font-bold bg-stone-800 text-white px-2 py-1 rounded outline-none text-center" />
+                                    <button type="button" onClick={() => guardarNuevaVariacionInline(prod.id)} className="flex-1 bg-emerald-600 text-white text-xs py-1 rounded font-bold">Guardar</button>
+                                    <button type="button" onClick={() => setVarianteNueva({ productoId: null, talla: "", nombreColor: "", stock: 10, colorHex: "#000000" })} className="text-stone-400 px-2">✕</button>
+                                  </div>
                                 </div>
-
+                              ) : (
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    setVariacionAEliminar({
-                                      id: v.id,
-                                      productoId: prod.id,
-                                      detalle: `${v.talla} - ${v.color_nombre || v.color_hex}`,
-                                    })
-                                  }
-                                  className="text-stone-400 hover:text-red-600 active:text-red-600 text-xs font-bold p-1 transition-colors cursor-pointer"
-                                  title="Eliminar esta variación"
+                                  onClick={() => setVarianteNueva({ productoId: prod.id, talla: "", nombreColor: "", stock: 10, colorHex: "#000000" })}
+                                  className="w-full mt-2 py-1.5 border border-dashed border-stone-300 rounded-xl bg-white text-stone-700 text-xs font-bold hover:bg-stone-100 transition-all"
                                 >
-                                  ✕
+                                  + Nuevo Color / Variante
                                 </button>
-                              </div>
-                            ))}
-                          </div>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Acciones Móvil */}
@@ -1604,14 +1718,29 @@ export default function TablaGestionProductos({
 
                               {/* Variaciones */}
                               <td className="p-4 min-w-[320px]">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  {prod.variaciones?.map((v: Variacion, i: number) => (
+                                {/* Botón para abrir/cerrar */}
+                                <button
+                                  type="button"
+                                  onClick={() => setProductoExpandidoId(productoExpandidoId === prod.id ? null : prod.id)}
+                                  className="flex items-center justify-between w-full px-3 py-1.5 bg-stone-100 hover:bg-stone-200 rounded-xl text-xs font-bold text-stone-700 transition-all cursor-pointer"
+                                >
+                                  <span>🎨 Variantes ({prod.variaciones?.length || 0})</span>
+                                  <span>{productoExpandidoId === prod.id ? "▲ Ocultar" : "▼ Ver y Editar"}</span>
+                                </button>
+
+
+                                {/* Contenedor desplegable (Acordeón) */}
+                                {productoExpandidoId === prod.id && (
+                                  <div className="mt-2 p-2 bg-stone-50 border border-stone-200 rounded-xl space-y-2 animate-in fade-in duration-200">
+                                     <div className="flex flex-wrap items-center gap-1.5">
+                                    {prod.variaciones?.map((v: Variacion, i: number) => (
                                     <div
                                       key={v.id || i}
-                                      className={`group relative flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all ${
+                                      className={`group relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all ${
                                         v.stock <= 2 ? "bg-red-50 border-red-200 text-red-700" : "bg-white border-stone-200 text-stone-700"
                                       }`}
                                     >
+                                      {/* Selector de color */}
                                       <label className="relative cursor-pointer flex items-center" title={v.color_nombre || "Cambiar color"}>
                                         <div 
                                           className="w-3.5 h-3.5 rounded-full border shadow-sm transition-transform hover:scale-125" 
@@ -1625,6 +1754,7 @@ export default function TablaGestionProductos({
                                         />
                                       </label>
 
+                                      {/* Nombre de color y talla */}
                                       <div className="flex flex-col leading-none gap-0.5">
                                         <input
                                           type="text"
@@ -1632,116 +1762,140 @@ export default function TablaGestionProductos({
                                           placeholder="Color"
                                           onBlur={(e) => e.target.value !== v.color_nombre && actualizarNombreColor(v.id, e.target.value, prod.id)}
                                           className="text-[9px] text-stone-500 font-medium capitalize bg-transparent border-b border-transparent hover:border-stone-300 focus:border-stone-800 outline-none w-14"
-                                          title="Editar nombre del color"
                                         />
-
                                         <input
                                           type="text"
                                           defaultValue={v.talla || ""}
                                           placeholder="Talla"
                                           onBlur={(e) => e.target.value !== v.talla && actualizarTallaVariacion(v.id, e.target.value, prod.id)}
                                           className="text-[10px] font-bold uppercase bg-transparent border-b border-transparent hover:border-stone-300 focus:border-stone-800 outline-none w-10"
-                                          title="Editar talla"
                                         />
                                       </div>
 
+                                      {/* 💡 INPUTS DE PRECIOS POR TALLA (AQUÍ DEBEN IR) */}
+                                      <div className="flex flex-col gap-0.5 border-l border-r border-stone-200 px-1">
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          defaultValue={v.precio_menudeo ?? ""}
+                                          placeholder="Menudeo"
+                                          onBlur={(e) => {
+                                            const val = e.target.value === "" ? null : parseFloat(e.target.value);
+                                            if (val !== v.precio_menudeo) actualizarPrecioMenudeoVariacion(v.id, val, prod.id);
+                                          }}
+                                          className="w-12 text-[9px] font-bold bg-amber-50/60 border border-amber-200 rounded px-0.5 text-center outline-none"
+                                          title="Precio Menudeo Específico (Vacío usa el base)"
+                                        />
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          defaultValue={v.precio_mayoreo ?? ""}
+                                          placeholder="Mayoreo"
+                                          onBlur={(e) => {
+                                            const val = e.target.value === "" ? null : parseFloat(e.target.value);
+                                            if (val !== v.precio_mayoreo) actualizarPrecioMayoreoVariacion(v.id, val, prod.id);
+                                          }}
+                                          className="w-12 text-[9px] font-bold bg-amber-50/60 border border-amber-200 rounded px-0.5 text-center outline-none"
+                                          title="Precio Mayoreo Específico (Vacío usa el base)"
+                                        />
+                                      </div>
+
+                                      {/* Input de Stock */}
                                       <input
                                         type="number"
                                         min="0"
                                         defaultValue={v.stock}
                                         onBlur={(e) => manejarAjusteStock(v.id, e.target.value, prod.id)}
-                                        className="w-8 text-center text-[10px] font-black bg-transparent border-b border-stone-300 outline-none"
+                                        className="w-7 text-center text-[10px] font-black bg-transparent border-b border-stone-300 outline-none"
                                         title="Editar existencia"
                                       />
 
+                                      {/* Botones de acción de la variante (+talla y eliminar) */}
                                       <button
                                         type="button"
                                         onClick={() => agregarTallaAMismoColor(v, prod.id)}
-                                        className="text-[9px] font-bold text-stone-400 hover:text-stone-800 bg-stone-100 hover:bg-stone-200 px-1 py-0.5 rounded transition-colors"
-                                        title={`Agregar otra talla para el color ${v.color_nombre || v.color_hex}`}
+                                        className="text-[9px] font-bold text-stone-400 hover:text-stone-800 bg-stone-100 px-1 py-0.5 rounded"
+                                        title="Agregar otra talla"
                                       >
                                         +talla
                                       </button>
-
                                       <button
                                         type="button"
-                                        onClick={() =>
-                                          setVariacionAEliminar({
-                                            id: v.id,
-                                            productoId: prod.id,
-                                            detalle: `${v.talla} - ${v.color_nombre || v.color_hex}`,
-                                          })
-                                        }
-                                        className="text-stone-400 hover:text-red-600 text-[10px] font-bold transition-colors cursor-pointer opacity-60 hover:opacity-100"
-                                        title="Eliminar esta variación"
+                                        onClick={() => setVariacionAEliminar({ id: v.id, productoId: prod.id, detalle: `${v.talla} / ${v.color_nombre}` })}
+                                        className="text-stone-400 hover:text-red-600 text-[10px] font-bold"
+                                        title="Eliminar"
                                       >
                                         ✕
                                       </button>
                                     </div>
-                                  ))}
+                                    ))}
 
-                                  {varianteNueva.productoId === prod.id ? (
-                                    <div className="flex items-center gap-1 p-1.5 bg-stone-900 border border-stone-700 rounded-xl animate-in fade-in zoom-in-95 duration-200 shadow-lg">
-                                      <input
-                                        type="color"
-                                        value={varianteNueva.colorHex}
-                                        onChange={(e) => setVarianteNueva({ ...varianteNueva, colorHex: e.target.value })}
-                                        className="w-5 h-5 rounded cursor-pointer border-0 bg-transparent p-0"
-                                        title="Color Hex"
-                                      />
+                                    {varianteNueva.productoId === prod.id ? (
+                                      <div className="flex items-center gap-1 p-1.5 bg-stone-900 border border-stone-700 rounded-xl animate-in fade-in zoom-in-95 duration-200 shadow-lg">
+                                        <input
+                                          type="color"
+                                          value={varianteNueva.colorHex}
+                                          onChange={(e) => setVarianteNueva({ ...varianteNueva, colorHex: e.target.value })}
+                                          className="w-5 h-5 rounded cursor-pointer border-0 bg-transparent p-0"
+                                          title="Color Hex"
+                                        />
 
-                                      <input
-                                        type="text"
-                                        placeholder="Color"
-                                        value={varianteNueva.nombreColor}
-                                        onChange={(e) => setVarianteNueva({ ...varianteNueva, nombreColor: e.target.value })}
-                                        className="w-16 text-[10px] font-medium bg-stone-800 text-stone-100 placeholder:text-stone-500 px-1.5 py-1 rounded-lg outline-none border border-stone-700 capitalize"
-                                      />
+                                        <input
+                                          type="text"
+                                          placeholder="Color"
+                                          value={varianteNueva.nombreColor}
+                                          onChange={(e) => setVarianteNueva({ ...varianteNueva, nombreColor: e.target.value })}
+                                          className="w-16 text-[10px] font-medium bg-stone-800 text-stone-100 placeholder:text-stone-500 px-1.5 py-1 rounded-lg outline-none border border-stone-700 capitalize"
+                                        />
 
-                                      <input
-                                        type="text"
-                                        placeholder="Talla"
-                                        value={varianteNueva.talla}
-                                        onChange={(e) => setVarianteNueva({ ...varianteNueva, talla: e.target.value })}
-                                        className="w-12 text-[10px] font-bold bg-stone-800 text-stone-100 placeholder:text-stone-500 px-1.5 py-1 rounded-lg outline-none border border-stone-700 uppercase text-center"
-                                        autoFocus
-                                      />
+                                        <input
+                                          type="text"
+                                          placeholder="Talla"
+                                          value={varianteNueva.talla}
+                                          onChange={(e) => setVarianteNueva({ ...varianteNueva, talla: e.target.value })}
+                                          className="w-12 text-[10px] font-bold bg-stone-800 text-stone-100 placeholder:text-stone-500 px-1.5 py-1 rounded-lg outline-none border border-stone-700 uppercase text-center"
+                                          autoFocus
+                                        />
 
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        placeholder="Cant."
-                                        value={varianteNueva.stock}
-                                        onChange={(e) => setVarianteNueva({ ...varianteNueva, stock: parseInt(e.target.value) || 0 })}
-                                        className="w-10 text-[10px] font-bold bg-stone-800 text-stone-100 px-1.5 py-1 rounded-lg outline-none border border-stone-700 text-center"
-                                      />
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          placeholder="Cant."
+                                          value={varianteNueva.stock}
+                                          onChange={(e) => setVarianteNueva({ ...varianteNueva, stock: parseInt(e.target.value) || 0 })}
+                                          className="w-10 text-[10px] font-bold bg-stone-800 text-stone-100 px-1.5 py-1 rounded-lg outline-none border border-stone-700 text-center"
+                                        />
 
+                                        <button
+                                          type="button"
+                                          onClick={() => guardarNuevaVariacionInline(prod.id)}
+                                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] px-2 py-1 rounded-lg font-bold transition-colors cursor-pointer"
+                                        >
+                                          ✓
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => setVarianteNueva({ productoId: null, talla: "", nombreColor: "", stock: 10, colorHex: "#000000" })}
+                                          className="text-stone-400 hover:text-stone-200 text-[10px] px-1 font-bold cursor-pointer"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    ) : (
                                       <button
                                         type="button"
-                                        onClick={() => guardarNuevaVariacionInline(prod.id)}
-                                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] px-2 py-1 rounded-lg font-bold transition-colors cursor-pointer"
+                                        onClick={() => setVarianteNueva({ productoId: prod.id, talla: "", nombreColor: "", stock: 10, colorHex: "#000000" })}
+                                        className="px-2 py-1 rounded-lg border border-dashed border-stone-300 bg-stone-50 text-stone-600 hover:bg-stone-100 hover:border-stone-400 text-[10px] font-bold transition-all cursor-pointer"
                                       >
-                                        ✓
+                                        + Nuevo Color
                                       </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => setVarianteNueva({ productoId: null, talla: "", nombreColor: "", stock: 10, colorHex: "#000000" })}
-                                        className="text-stone-400 hover:text-stone-200 text-[10px] px-1 font-bold cursor-pointer"
-                                      >
-                                        ✕
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => setVarianteNueva({ productoId: prod.id, talla: "", nombreColor: "", stock: 10, colorHex: "#000000" })}
-                                      className="px-2 py-1 rounded-lg border border-dashed border-stone-300 bg-stone-50 text-stone-600 hover:bg-stone-100 hover:border-stone-400 text-[10px] font-bold transition-all cursor-pointer"
-                                    >
-                                      + Nuevo Color
-                                    </button>
-                                  )}
+                                    )}
                                 </div>
+                                  </div>
+                                )}
                               </td>
 
                               <td className="p-4 text-center">
