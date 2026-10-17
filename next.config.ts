@@ -77,9 +77,9 @@ const nextConfig: NextConfig = {
               scriptSrcPolicy,
               "style-src 'self' 'unsafe-inline';",
               "img-src 'self' data: blob: https://*.facebook.com https://*.fbcdn.net https:;",
-              "media-src 'self' data: blob: https://*.facebook.com https://*.connect.facebook.net https:;", // Permite cargar videos locales y externos por HTTPS
+              "media-src 'self' data: blob: https:;", // Permite cargar videos locales y externos por HTTPS
               "font-src 'self' data:;",
-              "connect-src 'self' https:;",
+              "connect-src 'self' https://*.facebook.com https://*.connect.facebook.net https:;",
               "object-src 'none';",
               "base-uri 'self';",
               "form-action 'self';",
