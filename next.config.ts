@@ -40,11 +40,12 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    // En desarrollo local (dev) permitimos 'unsafe-eval' para React/Turbopack.
-    // En producción (Vercel/servidor) se elimina automáticamente para máxima seguridad.
+    // Dominios permitidos para Meta/Facebook
+    const fbScriptDomains = "https://connect.facebook.net https://www.facebook.com https://*.facebook.com";
+    
     const scriptSrcPolicy = isDev
-      ? "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.facebook.com https://*.connect.facebook.net;"
-      : "script-src 'self' 'unsafe-inline' https://*.facebook.com https://*.connect.facebook.net;";
+      ? `'self' 'unsafe-eval' 'unsafe-inline' ${fbScriptDomains}`
+      : `'self' 'unsafe-inline' ${fbScriptDomains}`;
 
     return [
       {
@@ -74,12 +75,13 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self';",
-              scriptSrcPolicy,
+              `script-src ${scriptSrcPolicy};`,
+              `script-src-elem ${scriptSrcPolicy};`,
               "style-src 'self' 'unsafe-inline';",
-              "img-src 'self' data: blob: https://*.facebook.com https://*.fbcdn.net https:;",
-              "media-src 'self' data: blob: https:;", // Permite cargar videos locales y externos por HTTPS
+              "img-src 'self' data: blob: https://www.facebook.com https://*.facebook.com https://*.fbcdn.net https:;",
+              "media-src 'self' data: blob: https:;",
               "font-src 'self' data:;",
-              "connect-src 'self' https://*.facebook.com https://*.connect.facebook.net https:;",
+              "connect-src 'self' https://www.facebook.com https://*.facebook.com https://connect.facebook.net https:;",
               "object-src 'none';",
               "base-uri 'self';",
               "form-action 'self';",
@@ -89,8 +91,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-
-    
   },
 };
 
