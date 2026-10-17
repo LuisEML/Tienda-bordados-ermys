@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import BotonWhatsApp from "@/app/components/BotonWhatsApp";
 import ClientLayout from "./components/ClientLayout";
 import { META_PIXEL_ID } from '@/lib/meta-pixel';
+import Script from 'next/script'; // Importamos Script de Next.js
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.ropatipicaermys.com.mx/"), // Sustituir por el dominio final
@@ -81,15 +82,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <head>
-        {/* Meta Pixel Code */}
-        <script
+      <body className={`${playfair.variable} ${inter.variable} antialiased font-sans bg-crema`} suppressHydrationWarning={true}>
+        {/* Meta Pixel Code Corregido */}
+        <Script
+          id="fb-pixel"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               !function(f,b,e,v,n,t,s)
               {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
               n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-              if(!f._fbq)n.push;n.loaded=!0;n.version='2.0';
+              if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
               n.queue=[];t=b.createElement(e);t.async=!0;
               t.src=v;s=b.getElementsByTagName(e)[0];
               s.parentNode.insertBefore(t,s)}(window, document,'script',
@@ -105,11 +108,11 @@ export default function RootLayout({
             width="1"
             style={{ display: 'none' }}
             src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
+            alt="facebook-pixel"
           />
         </noscript>
         {/* End Meta Pixel Code */}
-      </head>
-      <body className={`${playfair.variable} ${inter.variable} antialiased font-sans bg-crema`} suppressHydrationWarning={true}>
+
         <CartProvider>
           <ClientLayout>
             {children}
