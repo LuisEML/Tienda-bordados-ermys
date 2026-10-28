@@ -166,7 +166,10 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
   };
 
   const agregarTallaAColor = (colorIdx: number, tallaTexto: string) => {
-    const nuevoSKU = generarSKU(nombreProducto, tallaTexto);
+
+    // Forzamos la talla inicial a mayúsculas por seguridad
+    const tallaNormalizada = tallaTexto.toUpperCase();
+    const nuevoSKU = generarSKU(nombreProducto, tallaNormalizada);
 
     setGruposColor((prev) =>
       prev.map((grupo, idx) => {
@@ -176,9 +179,9 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
           tallas: [
             ...grupo.tallas,
             {
-              talla: tallaTexto,
+              talla: tallaNormalizada,
               sku: nuevoSKU,
-              stock: 10,
+              stock: 12,
               precio_menudeo: "", // 👈 NUEVO
               precio_mayoreo: "", // 👈 NUEVO
             },
@@ -203,6 +206,11 @@ export default function FormSubirProductos({ categorias: categoriasIniciales = [
   ) => {
     const nuevos = [...gruposColor];
     let valorFinal = valor;
+
+    // Si el usuario está escribiendo en el campo de la tallaIndex, lo convertimos a MAYÚSCULAS
+    if (campo === "talla") {
+      valorFinal = String(valor).toUpperCase();
+    }
 
     if (campo === "stock") {
       const parsed = parseInt(valor);
