@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : `Pieza artesanal única hecha a mano. Precio: $${producto.precio_menudeo} MXN.`;
 
   return {
-    title: producto.nombre,
+    title: titulo,
     description: descripcion,
     openGraph: {
       title: titulo,

@@ -7,7 +7,8 @@ const baseUrl = process.env.APP_URL || "https://www.ropatipicaermys.com.mx";
  // 1. Obtener todos los productos de Supabase
   const { data: productos } = await supabase
     .from("productos")
-    .select("id, updated_at");
+    .select("id, updated_at")
+    .eq("disponible_en_linea", true);
 
   const rutasProductos: MetadataRoute.Sitemap =
     productos?.map((prod) => ({
